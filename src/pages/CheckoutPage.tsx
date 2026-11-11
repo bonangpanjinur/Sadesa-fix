@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, MapPin, Truck, Package, Loader2, CheckCircle, CreditCard, AlertTriangle, Clock, Ticket } from 'lucide-react';
+import { ArrowLeft, MapPin, Truck, Package, Loader2, CheckCircle, CreditCard, AlertTriangle, Clock, QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -19,7 +19,7 @@ import { CheckoutAddressForm, type CheckoutAddressData } from '@/components/chec
 import { createEmptyCheckoutAddress } from '@/components/checkout/checkoutAddressDefaults';
 import { formatFullAddress } from '@/components/AddressSelector';
 import { validatePhone } from '@/lib/phoneValidation';
-import { getMerchantOperatingStatus, formatTime, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
+import { getMerchantOperatingStatus, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
 import { getDeliveryRestriction, MAX_LOCAL_DELIVERY_DISTANCE_KM } from '@/lib/deliveryRestriction';
 import { getGuestCheckoutSessionKey, guestOrderUrl, rememberGuestOrderAccess } from '@/lib/guestCheckout';
 import { useGuestCheckoutEnabled } from '@/hooks/useGuestCheckoutEnabled';
@@ -31,7 +31,7 @@ import { getCheckoutMerchantIds, hasMultipleCheckoutMerchants } from '@/lib/cart
 import { getCartItemKey } from '@/lib/cartItemIdentity';
 import { getOptimizedImageSrcSet, optimizeSupabaseImage } from '@/components/ui/OptimizedImage';
 
-type PaymentMethod = 'TRANSFER' | 'ONLINE' | 'QRIS_DYNAMIC';
+type PaymentMethod = 'TRANSFER' | 'ONLINE' | 'QRIS';
 
 interface MerchantOperatingInfo {
   id: string;
@@ -89,9 +89,10 @@ export default function CheckoutPage() {
   const [orderId, setOrderId] = useState<string | null>(null);
   const [guestToken, setGuestToken] = useState<string | null>(null);
   const [deliveryType, setDeliveryType] = useState<'PICKUP' | 'INTERNAL' | 'EXPEDITION'>('INTERNAL');
-  const [paymentMethod] = useState<PaymentMethod>('TRANSFER');
-  // The first available options are visibly selected by default, so the step
-  // indicator and CTA should not pretend the buyer still needs to choose them.
+  
+  // Default payment method menggunakan 'QRIS'
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('QRIS');
+  
   const [hasChosenDelivery, setHasChosenDelivery] = useState(true);
   const hasChosenPayment = true;
   const [xenditAvailable, setXenditAvailable] = useState(false);
@@ -101,8 +102,7 @@ export default function CheckoutPage() {
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [appliedVoucher, setAppliedVoucher] = useState<{ id: string; name: string; discount: number } | null>(null);
-  // Keep the same key while a checkout attempt is retried after a timeout or
-  // invoice-provider failure. The database then returns the original order.
+  
   const checkoutKeyRef = useRef<string | null>(null);
   const guestSessionKeyRef = useRef<string | null>(null);
   const checkoutSummaryRef = useRef<HTMLDivElement | null>(null);
@@ -127,10 +127,8 @@ export default function CheckoutPage() {
     return () => observer.disconnect();
   }, [items.length]);
 
-  // Address state
   const [addressData, setAddressData] = useState<CheckoutAddressData>(createEmptyCheckoutAddress());
 
-  // Distance state
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const [distanceSource, setDistanceSource] = useState<'google' | 'fallback' | 'straight-line' | 'calculating' | null>(null);
   const [checkoutQuoteResult, setCheckoutQuoteResult] = useState<{ key: string; quote: MarketplaceCheckoutQuote } | null>(null);
@@ -138,10 +136,8 @@ export default function CheckoutPage() {
   const [checkoutQuoteError, setCheckoutQuoteError] = useState<string | null>(null);
   const [quoteRetryNonce, setQuoteRetryNonce] = useState(0);
 
-  // Shipping settings from admin
   const [shippingSettings, setShippingSettings] = useState<{ base_fee: number; per_km_fee: number; min_fee: number; max_fee: number; free_shipping_min_order: number } | null>(null);
   const [shippingZones, setShippingZones] = useState<ShippingZoneEstimate[]>([]);
-  // Merchant payment settings
   const [merchantPaymentSettings, setMerchantPaymentSettings] = useState<MerchantPaymentSettings & { qrisImageUrl: string | null } | null>(null);
   const [paymentSettingsLoadState, setPaymentSettingsLoadState] = useState<{
     merchantId: string | null;
@@ -154,11 +150,9 @@ export default function CheckoutPage() {
     }
   }, [guestCheckoutEnabled, guestCheckoutFlagLoading, navigate, user]);
 
-  // Check if Xendit is enabled
   useEffect(() => {
     isXenditEnabled().then(setXenditAvailable);
     if (!user) guestSessionKeyRef.current = getGuestCheckoutSessionKey();
-    // Load the distance formula and the optional difficult-road zone surcharge.
     supabase.from('app_settings').select('key, value').in('key', ['shipping_base_fee', 'shipping_zones']).then(({ data }) => {
       const settings = (data || []) as Array<{ key: string; value: unknown }>;
       const baseSetting = settings.find((setting) => setting.key === 'shipping_base_fee')?.value;
@@ -189,7 +183,6 @@ export default function CheckoutPage() {
     });
   }, [user]);
 
-  // Get merchant location state (will be loaded after merchantIds are computed)
   const [merchantLocation, setMerchantLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [merchantRegion, setMerchantRegion] = useState<{
     cityName: string | null;
@@ -203,11 +196,9 @@ export default function CheckoutPage() {
     (item.toppings || []).some((topping) => topping.product.stock < item.quantity * topping.quantity),
   );
 
-  // Calculate shipping based on distance
   const estimatedShippingCost = useMemo(() => {
     if (deliveryType === 'PICKUP') return 0;
 
-    // Free shipping threshold check
     const freeShippingMin = shippingSettings?.free_shipping_min_order ?? Infinity;
     if (subtotal >= freeShippingMin) return 0;
 
@@ -228,11 +219,11 @@ export default function CheckoutPage() {
 
     return Math.min(maxFee, Math.max(minFee, baseFee + zoneSurcharge));
   }, [deliveryType, distanceKm, shippingSettings, shippingZones, subtotal]);
+
   const routeCalculationPending = deliveryType !== 'PICKUP'
     && Boolean(merchantLocation && addressData.location)
     && distanceSource === 'calculating';
-  // Route distance remains useful for local-delivery eligibility and ETA.
-  // The server quote and order pricing independently derive distance from coordinates.
+
   const distanceCalculationRequired = deliveryType !== 'PICKUP'
     && Boolean(merchantLocation && addressData.location);
   const distanceReady = !distanceCalculationRequired
@@ -246,6 +237,7 @@ export default function CheckoutPage() {
       quantity: Math.trunc(item.quantity * topping.quantity),
     })),
   ])), [items]);
+
   const deliveryCityId = addressData.address.city || null;
   const deliveryDistrictId = addressData.address.district || null;
   const checkoutQuoteKey = useMemo(() => JSON.stringify({
@@ -258,16 +250,19 @@ export default function CheckoutPage() {
     voucherId: user ? appliedVoucher?.id ?? null : null,
     merchantId: items[0]?.product.merchantId ?? null,
   }), [addressData.location?.lat, addressData.location?.lng, appliedVoucher?.id, deliveryCityId, deliveryDistrictId, deliveryType, items, quoteItems, user]);
+  
   const serverQuote = checkoutQuoteResult?.key === checkoutQuoteKey ? checkoutQuoteResult.quote : null;
   const shippingCost = serverQuote?.shipping_cost ?? estimatedShippingCost;
   const displaySubtotal = serverQuote?.subtotal ?? subtotal;
   const displayVoucherDiscount = serverQuote?.voucher_discount ?? voucherDiscount;
   const total = serverQuote?.total ?? (subtotal + estimatedShippingCost - voucherDiscount);
   const checkoutQuoteReady = Boolean(serverQuote);
+  
   const authoritativeLinePrices = useMemo(
     () => new Map((serverQuote?.line_items ?? []).map((line) => [line.product_id, line.unit_price])),
     [serverQuote?.line_items],
   );
+  
   const getDisplayedItemSubtotal = (item: typeof items[number]) => {
     if (!serverQuote?.line_items?.length) return getCartItemSubtotal(item);
     const basePrice = authoritativeLinePrices.get(item.product.id) ?? item.product.price;
@@ -287,14 +282,11 @@ export default function CheckoutPage() {
   );
 
   useEffect(() => {
-    // Expedition remains supported server-side for a later rollout, but is
-    // intentionally hidden from buyer checkout for now.
     if (deliveryType === 'EXPEDITION' || (deliveryRestriction.requiresExpedition && deliveryType === 'INTERNAL')) {
       setDeliveryType('PICKUP');
     }
   }, [deliveryRestriction.requiresExpedition, deliveryType]);
 
-  // Group items by merchant
   const itemsByMerchant = useMemo(() => items.reduce((acc, item) => {
     const merchantId = item.product.merchantId;
     if (!acc[merchantId]) {
@@ -307,7 +299,6 @@ export default function CheckoutPage() {
     return acc;
   }, {} as Record<string, { merchantName: string; items: typeof items }>), [items]);
 
-  // Stable merchant IDs keep checkout policy independent from display names and item variants.
   const merchantIds = useMemo(() => getCheckoutMerchantIds(items), [items]);
   const merchantIdsKey = useMemo(() => merchantIds.join(','), [merchantIds]);
   const hasMultipleMerchants = hasMultipleCheckoutMerchants(merchantIds);
@@ -320,9 +311,6 @@ export default function CheckoutPage() {
       || (deliveryType !== 'PICKUP' && !merchantLocation)) {
       setCheckoutQuoteResult(null);
       setCheckoutQuoteLoading(false);
-      // Wait for merchant data before showing a quote error. The effect is
-      // keyed by merchantLocation below, so it will retry automatically once
-      // the merchant coordinates have loaded.
       setCheckoutQuoteError(
         deliveryType !== 'PICKUP' && paymentSettingsLoadState.status !== 'loading'
           ? 'Lokasi toko belum tersedia untuk menghitung ongkir.'
@@ -371,13 +359,10 @@ export default function CheckoutPage() {
     return () => { cancelled = true; };
   }, [addressData.location, addressData.location?.lat, addressData.location?.lng, appliedVoucher?.id, checkoutQuoteKey, deliveryCityId, deliveryDistrictId, deliveryType, firstMerchantId, hasMultipleMerchants, merchantLocation, merchantLocation?.lat, merchantLocation?.lng, paymentSettingsLoadState.status, quoteItems, quoteRetryNonce, user]);
 
-  // Check merchant operating hours
   const [merchantOperatingInfo, setMerchantOperatingInfo] = useState<Record<string, MerchantOperatingInfo>>({});
   const [operatingHoursLoading, setOperatingHoursLoading] = useState(false);
   const [operatingHoursError, setOperatingHoursError] = useState<Error | null>(null);
 
-  // Load merchant location and payment settings once per merchant. The
-  // provider availability check must not refetch this whole block.
   useEffect(() => {
     let cancelled = false;
     if (!firstMerchantId) {
@@ -388,13 +373,11 @@ export default function CheckoutPage() {
 
     setMerchantPaymentSettings(null);
     setPaymentSettingsLoadState({ merchantId: firstMerchantId, status: 'loading' });
-    // Do not let a previous merchant's coordinates be used while the next
-    // merchant is loading (for example after changing the cart).
     setMerchantLocation(null);
     setMerchantRegion({ cityName: null, districtName: null });
+    
     const fetchMerchantData = async () => {
       try {
-        // Get location and payment settings of first merchant (simplified - assumes single merchant checkout)
         const { data, error } = await supabase
           .from('merchants')
           .select('location_lat, location_lng, province, city, district, qris_image_url')
@@ -489,7 +472,6 @@ export default function CheckoutPage() {
     return () => { cancelled = true; };
   }, [merchantIdsKey]);
 
-  // Get closed merchants
   const closedMerchants = useMemo(() => {
     return Object.values(merchantOperatingInfo).filter(m => {
       const status = getMerchantOperatingStatus(m.isOpen, m.openTime, m.closeTime, m.weeklySchedule);
@@ -516,14 +498,18 @@ export default function CheckoutPage() {
   const deliveryStepComplete = addressStepComplete && hasChosenDelivery;
   const paymentStepComplete = deliveryStepComplete && hasChosenPayment;
   const currentStepIndex = !items.length ? 0 : !addressStepComplete ? 1 : !deliveryStepComplete ? 2 : !paymentStepComplete ? 3 : 3;
+  
   const paymentSettingsReady = isCheckoutPaymentSettingsReady(
     paymentSettingsLoadState.status,
     paymentSettingsLoadState.merchantId,
     firstMerchantId,
-  ) && merchantPaymentSettings !== null;
-  const paymentReady = paymentSettingsReady && Boolean(merchantPaymentSettings?.qrisImageUrl?.trim());
+  );
+  
+  // Jika memilih QRIS (dinamis GDC), paymentReady selalu true tanpa perlu memvalidasi qrisImageUrl toko
+  const paymentReady = paymentSettingsReady && (
+    paymentMethod === 'QRIS' || Boolean(merchantPaymentSettings?.qrisImageUrl?.trim())
+  );
 
-  // Remove items from a specific merchant
   const handleRemoveMerchantItems = (merchantId: string) => {
     const merchantItems = itemsByMerchant[merchantId]?.items || [];
     merchantItems.forEach(item => {
@@ -546,7 +532,6 @@ export default function CheckoutPage() {
       newErrors.phone = t('checkout.validation.phone');
     }
 
-    // Only validate address fields for delivery, not pickup
     if (deliveryType !== 'PICKUP') {
       if (!addressData.address.province) {
         newErrors.address = t('checkout.validation.province');
@@ -559,7 +544,6 @@ export default function CheckoutPage() {
       }
     }
 
-    // Only require map location for delivery, not pickup
     if (deliveryType !== 'PICKUP' && !addressData.location) {
       newErrors.location = t('checkout.validation.location');
     }
@@ -570,7 +554,6 @@ export default function CheckoutPage() {
 
     if (Object.keys(newErrors).length > 0) {
       console.warn('Validation failed:', newErrors);
-      // Scroll to the first error
       const firstErrorField = Object.keys(newErrors)[0];
       const element = document.getElementById(`error-${firstErrorField}`);
       if (element) {
@@ -638,8 +621,6 @@ export default function CheckoutPage() {
       return;
     }
 
-    // Checkout currently creates one order and one payment flow. Do not create
-    // partial child orders for a cart containing multiple merchants.
     if (hasMultipleMerchants) {
       toast({
         title: 'Checkout hanya untuk satu toko',
@@ -649,7 +630,6 @@ export default function CheckoutPage() {
       return;
     }
 
-    // Check if any merchant is closed
     if (!allMerchantsOpen) {
       const closedNames = closedMerchants.map(m => m.name).join(', ');
       toast({
@@ -674,7 +654,6 @@ export default function CheckoutPage() {
 
     try {
       checkoutKeyRef.current ??= crypto.randomUUID();
-      // Validate stock before creating orders
       const allProductIds = items.flatMap(item => [item.product.id, ...(item.toppings || []).map(topping => topping.product.id)]);
       const { data: currentStocks, error: stockCheckError } = await supabase
         .from('products')
@@ -728,15 +707,13 @@ export default function CheckoutPage() {
           notes: notes || null,
         },
         p_delivery_type: deliveryType,
-        // The order RPC uses its existing transfer workflow; GDC MPM is
-        // generated by the server once this authoritative order exists.
-        p_payment_method: paymentMethod === 'QRIS_DYNAMIC' ? 'TRANSFER' : paymentMethod,
+        // RPC marketplace checkout menerima enum 'TRANSFER'
+        p_payment_method: paymentMethod === 'QRIS' ? 'TRANSFER' : paymentMethod,
         p_voucher_id: user ? appliedVoucher?.id ?? null : null,
-        // The server derives distance from the submitted destination and the
-        // merchant's stored coordinates; never trust a client-supplied rate input.
         p_checkout_key: checkoutKeyRef.current,
         ...(user ? {} : { p_guest_checkout_key: guestSessionKeyRef.current ?? getGuestCheckoutSessionKey() }),
       };
+
       const { data: checkoutResult, error: checkoutError } = await supabase.rpc(
         (user ? 'create_marketplace_checkout' : 'create_guest_marketplace_checkout') as never,
         checkoutPayload as never,
@@ -763,9 +740,6 @@ export default function CheckoutPage() {
       if (user && paymentMethod === 'ONLINE' && xenditAvailable) {
         try {
           const invoice = await createPaymentInvoice({ orderId: authoritativeOrderId });
-          // The order is already committed and the invoice is ready. Clear the
-          // purchased lines before navigating away so a successful online
-          // checkout cannot leave stale items in the cart.
           selectedItems.forEach(item => {
             if (item.toppings?.length) removeFromCart(item.product.id, item.toppings);
             else removeFromCart(item.product.id);
@@ -790,7 +764,9 @@ export default function CheckoutPage() {
         else removeFromCart(item.product.id);
       });
       checkoutKeyRef.current = null;
-      if (paymentMethod === 'QRIS_DYNAMIC') {
+
+      // Alur Navigasi Pembayaran
+      if (paymentMethod === 'QRIS') {
         navigate(`/payment/${authoritativeOrderId}?provider=gdc-mpm`);
         return;
       }
@@ -798,6 +774,7 @@ export default function CheckoutPage() {
         navigate(user ? `/payment/${authoritativeOrderId}` : guestOrderUrl(authoritativeOrderId, typedCheckoutResult?.guest_access_token || guestToken || '', 'payment'));
         return;
       }
+      
       setOrderId(authoritativeOrderId);
       setSuccess(true);
       toast({
@@ -808,10 +785,9 @@ export default function CheckoutPage() {
       });
       return;
 
-      } catch (error: unknown) {
+    } catch (error: unknown) {
       console.error('Checkout error:', error);
 
-      // Extract more specific error message
       let errorMessage = 'Terjadi kesalahan, silakan coba lagi';
       const rawMessage = error instanceof Error ? error.message : '';
       if (rawMessage) {
@@ -917,9 +893,7 @@ export default function CheckoutPage() {
 
   return (
     <div className="mobile-shell bg-secondary flex h-[100dvh] min-h-0 flex-col">
-      {/* Sticky Header & Step Indicator */}
       <div className="sticky top-0 z-50 bg-card/95 shadow-sm backdrop-blur-md">
-        {/* Header */}
         <div className="p-4 border-b border-border flex items-center gap-3">
           <button
             onClick={() => safeGoBack(navigate)}
@@ -935,7 +909,6 @@ export default function CheckoutPage() {
           </h2>
         </div>
 
-        {/* Step Indicator */}
         <div role="group" className="px-3 pt-2 pb-2 border-b border-border" aria-label={t('checkout.steps')}>
           <div className="flex items-center justify-between gap-1">
             {[
@@ -981,7 +954,7 @@ export default function CheckoutPage() {
             </Button>
           </div>
         )}
-        {/* Closed Merchants Alert */}
+
         {!operatingHoursLoading && closedMerchants.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -1023,7 +996,6 @@ export default function CheckoutPage() {
           </motion.div>
         )}
 
-        {/* Loading store availability check */}
         {operatingHoursLoading && (
           <div className="bg-muted/50 rounded-lg p-4 mb-4 flex items-center justify-center gap-2">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -1037,7 +1009,7 @@ export default function CheckoutPage() {
           </div>
         )}
 
-        {/* Order Summary - moved to top */}
+        {/* Order Summary */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1102,7 +1074,6 @@ export default function CheckoutPage() {
           />
         </motion.div>
 
-        {/* Distance & ETA Info */}
         {distanceKm !== null && deliveryType !== 'PICKUP' && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -1124,22 +1095,6 @@ export default function CheckoutPage() {
                     ? 'Jarak garis lurus digunakan sebagai perkiraan; ongkir dapat dikonfirmasi kembali.'
                     : 'Menghitung jarak rute…'}
             </p>
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">
-                {t('shipping.etaLabel')}: <span className="font-medium text-foreground">
-                  {(() => {
-                    const etaMin = Math.ceil((distanceKm / 25) * 60 * 1.2);
-                    const variance = Math.max(5, Math.ceil(etaMin * 0.2));
-                    const min = Math.max(1, etaMin - variance);
-                    const max = etaMin + variance;
-                    return max < 60
-                      ? t('shipping.etaMinutes', { min, max })
-                      : t('shipping.etaHours', { min: Math.floor(min / 60), max: Math.ceil(max / 60) });
-                  })()}
-                </span>
-              </span>
-            </div>
           </motion.div>
         )}
 
@@ -1156,9 +1111,6 @@ export default function CheckoutPage() {
                 <p className="font-semibold text-amber-900">Kurir lokal tidak tersedia untuk alamat ini</p>
                 <p className="text-xs text-amber-800 mt-1">
                   Ojek/kurir lokal hanya tersedia sampai {MAX_LOCAL_DELIVERY_DISTANCE_KM} km dan dalam kecamatan serta kabupaten/kota yang sama. Untuk sementara, pilih Ambil Sendiri.
-                </p>
-                <p className="text-xs text-amber-800 mt-1">
-                  Alasan: {deliveryRestriction.reasons.join(' dan ')}.
                 </p>
               </div>
             </div>
@@ -1213,12 +1165,9 @@ export default function CheckoutPage() {
               <span className="text-sm font-bold text-primary">{t('shipping.freeLabel')}</span>
             </label>
           </RadioGroup>
-          {errors.delivery && (
-            <p className="text-xs text-destructive mt-2" role="alert">{errors.delivery}</p>
-          )}
         </motion.div>
 
-        {/* Payment Method */}
+        {/* Payment Method Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1230,28 +1179,53 @@ export default function CheckoutPage() {
             <h3 className="font-bold text-foreground">{t('checkout.payment.title')}</h3>
           </div>
 
-          {merchantPaymentSettings?.qrisImageUrl ? (
-            <div className="mt-3 rounded-lg border bg-secondary/50 p-3">
-              <p className="mb-2 text-sm font-semibold">QRIS toko</p>
-              <div className="flex justify-center rounded border bg-card p-3">
-                <img src={merchantPaymentSettings.qrisImageUrl} alt={`QRIS ${items[0]?.product.merchantName || 'toko'}`} className="max-h-64 w-auto max-w-full" />
+          <RadioGroup
+            value={paymentMethod}
+            onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
+            className="space-y-2"
+          >
+            <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
+              paymentMethod === 'QRIS' ? 'border-primary bg-primary/5' : 'border-border'
+            }`}>
+              <RadioGroupItem value="QRIS" id="qris" />
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="font-bold text-sm">QRIS Otomatis (GDC SNAP)</p>
+                  <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-800">Otomatis</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Kode QRIS dinamis dibuat otomatis. Pembayaran terverifikasi tanpa upload bukti.
+                </p>
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">Pindai QRIS ini untuk membayar pesanan ke merchant yang dipilih.</p>
-            </div>
-          ) : (
-            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
-              QRIS toko belum aktif. Checkout belum dapat dilanjutkan sampai admin mengunggah dan mengaktifkan QRIS merchant ini.
-            </div>
-          )}
-          {paymentMethod === 'QRIS_DYNAMIC' && (
-            <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-foreground" role="status">
-              QR akan dibuat setelah pesanan tersimpan menggunakan Merchant ID GDC yang sudah diverifikasi admin. Pembayaran masuk langsung ke akun merchant.
-            </div>
-          )}
+              <QrCode className="h-5 w-5 text-primary" />
+            </label>
 
+            <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
+              paymentMethod === 'TRANSFER' ? 'border-primary bg-primary/5' : 'border-border'
+            }`}>
+              <RadioGroupItem value="TRANSFER" id="transfer" />
+              <div className="flex-1">
+                <p className="font-bold text-sm">QRIS Manual / Transfer Bank</p>
+                <p className="text-xs text-muted-foreground">Pindai QRIS manual toko dan unggah konfirmasi pembayaran.</p>
+              </div>
+            </label>
+          </RadioGroup>
+
+          {paymentMethod === 'TRANSFER' && (
+            merchantPaymentSettings?.qrisImageUrl ? (
+              <div className="mt-3 rounded-lg border bg-secondary/50 p-3">
+                <p className="mb-2 text-sm font-semibold">QRIS toko</p>
+                <div className="flex justify-center rounded border bg-card p-3">
+                  <img src={merchantPaymentSettings.qrisImageUrl} alt="QRIS Toko" className="max-h-64 w-auto max-w-full" />
+                </div>
+              </div>
+            ) : (
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
+                QRIS manual toko belum diunggah. Disarankan memilih opsi QRIS Otomatis.
+              </div>
+            )
+          )}
         </motion.div>
-
-        {/* Order Summary moved to top of form */}
 
         {/* Voucher */}
         <motion.div
@@ -1295,7 +1269,7 @@ export default function CheckoutPage() {
         </motion.div>
       </form>
 
-        {/* Checkout Summary */}
+      {/* Checkout Summary Footer */}
       <div ref={checkoutSummaryRef} className="mobile-action-safe fixed bottom-0 left-0 right-0 max-w-[480px] mx-auto z-40 bg-card/95 border-t border-border px-3 pt-2 shadow-lg backdrop-blur-md sm:p-5">
         {(knownStockConflict || stockConflict) && (
           <div className="mb-3 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive" role="alert">
@@ -1303,12 +1277,13 @@ export default function CheckoutPage() {
             <span>{stockConflict || t('checkout.cta.stockHelp')}</span>
           </div>
         )}
-        {/* Free shipping badge */}
+        
         {checkoutQuoteLoading && (
           <p className="mb-2 text-center text-xs text-muted-foreground" role="status">
             <Loader2 className="mr-1 inline h-3 w-3 animate-spin" /> Memverifikasi subtotal, ongkir, dan total dari server...
           </p>
         )}
+
         {checkoutQuoteError && !checkoutQuoteLoading && (
           <div className="mb-2 flex items-center justify-center gap-2 text-center text-xs text-destructive" role="alert">
             <span>{checkoutQuoteError}</span>
@@ -1317,12 +1292,7 @@ export default function CheckoutPage() {
             </Button>
           </div>
         )}
-        {serverQuote && serverQuote.shipping_cost === 0 && deliveryType !== 'PICKUP' && (
-          <div className="flex items-center gap-1.5 mb-2 text-xs text-emerald-600 font-medium">
-            <CheckCircle className="h-3.5 w-3.5" />
-            <span>Ongkir gratis berdasarkan perhitungan server</span>
-          </div>
-        )}
+        
         <div className="flex justify-between items-center mb-1 text-xs sm:text-sm">
           <span className="text-muted-foreground">{t('shipping.subtotal')}</span>
           <span className="font-bold">{serverQuote ? formatCurrency(displaySubtotal) : '—'}</span>
@@ -1341,15 +1311,16 @@ export default function CheckoutPage() {
           <span className="text-base sm:text-lg font-bold">{t('shipping.total')}</span>
           <span className="text-lg sm:text-xl font-bold text-primary">{serverQuote ? formatCurrency(total) : '—'}</span>
         </div>
-        {/* Payment method label */}
+        
         <div className="flex items-center gap-1.5 mb-2 text-[11px] text-muted-foreground">
           <CreditCard className="h-3.5 w-3.5" />
           <span>
             {t('shipping.payVia')}: <span className="font-medium text-foreground">
-              QRIS
+              {paymentMethod === 'QRIS' ? 'QRIS Otomatis (GDC SNAP)' : 'QRIS Manual / Transfer'}
             </span>
           </span>
         </div>
+        
         <Button
           type="submit"
           form="checkout-form"
@@ -1362,46 +1333,10 @@ export default function CheckoutPage() {
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               {t('checkout.cta.processing')}
             </>
-          ) : operatingHoursLoading ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              {t('checkout.cta.checkingStore')}
-            </>
-          ) : operatingHoursError ? (
-            t('checkout.cta.storeUnverified')
-          ) : !allMerchantsOpen ? (
-            <>
-              <Clock className="h-4 w-4 mr-2" />
-              {t('checkout.cta.storeClosed')}
-            </>
-          ) : knownStockConflict || stockConflict ? (
-            t('checkout.cta.stockUnavailable')
           ) : (
             user ? t('checkout.cta.placeOrder') : t('checkout.cta.guestOrder')
           )}
         </Button>
-        {!isDeliveryReady && (
-          <p className="mt-2 text-center text-xs text-muted-foreground">
-            {t('checkout.cta.addressNeeded')}
-          </p>
-        )}
-        {!paymentReady && !loading && (
-          <p className="mt-2 text-center text-xs text-muted-foreground">
-            {paymentSettingsLoadState.status === 'error'
-              ? 'Pengaturan pembayaran gagal dimuat. Muat ulang halaman untuk mencoba lagi.'
-              : !paymentSettingsReady
-                ? 'Menyiapkan metode pembayaran toko...'
-                : 'Pilih metode pembayaran yang tersedia untuk melanjutkan.'}
-          </p>
-        )}
-        {hasMultipleMerchants && (
-          <p className="mt-2 text-center text-xs text-amber-800">
-            {t('checkout.multiStore.inline')}{' '}
-            <button type="button" className="underline font-medium" onClick={() => navigate('/cart')}>
-              {t('checkout.multiStore.adjust')}
-            </button>
-          </p>
-        )}
       </div>
     </div>
   );

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Copy, CheckCircle, QrCode, Clock, ExternalLink, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Copy, CheckCircle, QrCode as QrIcon, Clock, AlertTriangle, RefreshCw, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import QRCode from 'react-qr-code';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +13,6 @@ import { getGuestOrderAccess, guestOrderUrl } from '@/lib/guestCheckout';
 import { toast } from '@/hooks/use-toast';
 import { PaymentProofUpload } from '@/components/checkout/PaymentProofUpload';
 import { PaymentCountdown } from '@/components/checkout/PaymentCountdown';
-import { QRCodeSVG } from 'qrcode.react';
 import { createOrGetGdcQrisMpm, queryGdcQrisMpmStatus, type GdcQrisMpmPayment } from '@/lib/gdcQrisMpmApi';
 
 interface PaymentInfo {
@@ -39,11 +39,21 @@ export default function PaymentConfirmationPage() {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const guestToken = searchParams.get('guest_token') || getGuestOrderAccess(orderId || '', null)?.token;
+  
   const [order, setOrder] = useState<OrderInfo | null>(null);
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // State khusus GDC QRIS MPM Dinamis
+  const isGdcMpmProvider = searchParams.get('provider') === 'gdc-mpm';
+  const [gdcPayment, setGdcPayment] = useState<GdcQrisMpmPayment | null>(null);
+  const [gdcLoading, setGdcLoading] = useState(false);
+  const [gdcError, setGdcError] = useState<string | null>(null);
+
+  const isGdcMpmPayment = isGdcMpmProvider || Boolean(gdcPayment) || order?.payment_channel === 'gdc_mpm';
+
+  // Load data pesanan utama
   const loadOrderAndPaymentInfo = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true);
     if (showLoading) setLoadError(null);
@@ -91,6 +101,42 @@ export default function PaymentConfirmationPage() {
     }
   }, [orderId, user, guestToken]);
 
+  // Load data payload QRIS dari GDC Edge Function
+  const loadGdcPayment = useCallback(async () => {
+    if (!orderId) return;
+    setGdcLoading(true);
+    setGdcError(null);
+    try {
+      const payment = await createOrGetGdcQrisMpm(orderId);
+      setGdcPayment(payment);
+    } catch (err) {
+      console.error('Error loading GDC QRIS MPM:', err);
+      setGdcError(err instanceof Error ? err.message : 'Gagal memuat QRIS Dinamis');
+    } finally {
+      setGdcLoading(false);
+    }
+  }, [orderId, user, guestToken]);
+
+  // Manual Check Status GDC MPM
+  const handleCheckGdcStatus = async () => {
+    if (!orderId) return;
+    setGdcLoading(true);
+    try {
+      const payment = await queryGdcQrisMpmStatus(orderId);
+      setGdcPayment(payment);
+      await loadOrderAndPaymentInfo(false);
+      toast({ title: 'Status pembayaran diperbarui' });
+    } catch (err) {
+      toast({
+        title: 'Gagal mengecek status',
+        description: err instanceof Error ? err.message : 'Terjadi kesalahan',
+        variant: 'destructive',
+      });
+    } finally {
+      setGdcLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!orderId || (!user && !guestToken)) return;
     void loadOrderAndPaymentInfo();
@@ -107,6 +153,13 @@ export default function PaymentConfirmationPage() {
       if (channel) void supabase.removeChannel(channel);
     };
   }, [orderId, user, guestToken, loadOrderAndPaymentInfo]);
+
+  // Trigger pembuatan QRIS dinamis jika opsi provider=gdc-mpm aktif
+  useEffect(() => {
+    if (isGdcMpmProvider && orderId && !gdcPayment && !gdcLoading) {
+      void loadGdcPayment();
+    }
+  }, [isGdcMpmProvider, orderId, gdcPayment, gdcLoading, loadGdcPayment]);
 
   const handleCopyAmount = () => {
     if (order?.total) {
@@ -193,7 +246,10 @@ export default function PaymentConfirmationPage() {
           <Card className="border-emerald-200 bg-emerald-50/70">
             <CardContent className="flex items-start gap-3 p-4 text-sm text-emerald-900">
               <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-              <div><p className="font-bold">Pembayaran sudah diterima</p><p className="mt-1">Pesanan akan diproses sesuai status terbaru dari penjual.</p></div>
+              <div>
+                <p className="font-bold">Pembayaran sudah diterima</p>
+                <p className="mt-1">Pesanan akan diproses sesuai status terbaru dari penjual.</p>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -202,11 +258,15 @@ export default function PaymentConfirmationPage() {
           <Card className="border-destructive/30 bg-destructive/5">
             <CardContent className="flex items-start gap-3 p-4 text-sm" role="status">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
-              <div><p className="font-bold">Batas pembayaran telah berakhir</p><p className="mt-1">Pesanan ini tidak lagi menerima bukti transfer. Silakan buat pesanan baru atau hubungi penjual.</p></div>
+              <div>
+                <p className="font-bold">Batas pembayaran telah berakhir</p>
+                <p className="mt-1">Pesanan ini tidak lagi menerima pembayaran. Silakan buat pesanan baru atau hubungi penjual.</p>
+              </div>
             </CardContent>
           </Card>
         )}
 
+        {/* Notifikasi Menunggu Instruksi Pembayaran Manual */}
         {!isGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && !hasPaymentInstructions && (
           <Card className="border-amber-200 bg-amber-50/70">
             <CardContent className="flex items-start gap-3 p-4 text-sm text-amber-950" role="status">
@@ -219,14 +279,70 @@ export default function PaymentConfirmationPage() {
           </Card>
         )}
 
-        {/* QRIS */}
+        {/* Section 1: GDC QRIS MPM Dinamis (Render lewat react-qr-code) */}
+        {isGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+            <Card>
+              <CardContent className="p-4 flex flex-col items-center text-center">
+                <div className="flex items-center gap-2 mb-3">
+                  <QrIcon className="h-5 w-5 text-primary" />
+                  <h3 className="font-bold">QRIS Otomatis (GDC SNAP)</h3>
+                  <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-800">Instant</Badge>
+                </div>
+
+                {gdcLoading ? (
+                  <div className="py-8 flex flex-col items-center gap-2">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="text-xs text-muted-foreground">Membuat QRIS Dinamis...</p>
+                  </div>
+                ) : gdcError ? (
+                  <div className="py-4 text-sm text-destructive flex flex-col items-center gap-2">
+                    <AlertTriangle className="h-6 w-6" />
+                    <p>{gdcError}</p>
+                    <Button size="sm" variant="outline" onClick={() => void loadGdcPayment()}>
+                      Coba Lagi
+                    </Button>
+                  </div>
+                ) : gdcPayment?.qr_content ? (
+                  <div className="flex flex-col items-center w-full">
+                    <div className="p-4 bg-white rounded-xl border border-border shadow-sm my-2 flex justify-center">
+                      <QRCode
+                        value={gdcPayment.qr_content}
+                        size={220}
+                        style={{ height: 'auto', maxWidth: '100%', width: '100%' }}
+                        viewBox="0 0 256 256"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground max-w-xs mt-2">
+                      Scan kode QRIS di atas menggunakan <strong>GoPay, OVO, ShopeePay, DANA, BCA, atau m-Banking</strong>. Pembayaran akan terverifikasi secara otomatis.
+                    </p>
+
+                    {/* Tombol Cek Status Manual */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCheckGdcStatus}
+                      disabled={gdcLoading}
+                      className="mt-4 gap-2 text-xs"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${gdcLoading ? 'animate-spin' : ''}`} />
+                      Cek Status Pembayaran
+                    </Button>
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Section 2: QRIS Manual Toko (Gambar Statis Merchant) */}
         {!isGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && paymentInfo.qrisImageUrl && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-4">
-                  <QrCode className="h-5 w-5 text-primary" />
-                  <h3 className="font-bold">QRIS</h3>
+                  <QrIcon className="h-5 w-5 text-primary" />
+                  <h3 className="font-bold">QRIS Toko</h3>
                 </div>
 
                 <div className="flex justify-center p-4 bg-white rounded-lg border">
@@ -244,41 +360,45 @@ export default function PaymentConfirmationPage() {
           </motion.div>
         )}
 
-        {/* Upload Bukti Pembayaran */}
-        {!isGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && hasPaymentInstructions && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-          <Card>
-            <CardContent className="p-4">
-              <h3 className="font-bold text-sm mb-3">Upload Bukti Pembayaran</h3>
-              {order.payment_status === 'FAILED' && (
-                <p role="alert" className="mb-3 rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm text-muted-foreground">
-                  Bukti sebelumnya ditolak. Unggah bukti pembayaran QRIS yang benar; status akan kembali menunggu verifikasi setelah berhasil diunggah.
-                </p>
-              )}
-              <PaymentProofUpload
-                orderId={order.id}
-                guestAccessToken={!user ? guestToken : undefined}
-                currentProofUrl={order.payment_proof_url}
-                isRejected={order.payment_status === 'FAILED'}
-                onUploaded={() => void loadOrderAndPaymentInfo(false)}
-              />
-            </CardContent>
-          </Card>
-        </motion.div>}
+        {/* Upload Bukti Pembayaran (Hanya untuk QRIS Manual Toko) */}
+        {!isGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && hasPaymentInstructions && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="font-bold text-sm mb-3">Upload Bukti Pembayaran</h3>
+                {order.payment_status === 'FAILED' && (
+                  <p role="alert" className="mb-3 rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm text-muted-foreground">
+                    Bukti sebelumnya ditolak. Unggah bukti pembayaran QRIS yang benar; status akan kembali menunggu verifikasi setelah berhasil diunggah.
+                  </p>
+                )}
+                <PaymentProofUpload
+                  orderId={order.id}
+                  guestAccessToken={!user ? guestToken : undefined}
+                  currentProofUrl={order.payment_proof_url}
+                  isRejected={order.payment_status === 'FAILED'}
+                  onUploaded={() => void loadOrderAndPaymentInfo(false)}
+                />
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
-        {/* Instructions */}
-        {!isGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && hasPaymentInstructions && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-          <Card>
-            <CardContent className="p-4">
-              <h3 className="font-bold text-sm mb-3">Petunjuk Pembayaran</h3>
-              <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside">
-                <li>Pindai QRIS merchant dan bayar sesuai <strong className="text-foreground">nominal yang tertera</strong></li>
-                <li>Pastikan nama merchant pada aplikasi pembayaran sesuai dengan toko</li>
-                <li><strong className="text-foreground">Upload bukti pembayaran</strong> di atas</li>
-                <li>Pesanan akan diproses setelah pembayaran dikonfirmasi oleh penjual</li>
-              </ol>
-            </CardContent>
-          </Card>
-        </motion.div>}
+        {/* Petunjuk Pembayaran (Hanya untuk QRIS Manual Toko) */}
+        {!isGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && hasPaymentInstructions && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="font-bold text-sm mb-3">Petunjuk Pembayaran</h3>
+                <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside">
+                  <li>Pindai QRIS merchant dan bayar sesuai <strong className="text-foreground">nominal yang tertera</strong></li>
+                  <li>Pastikan nama merchant pada aplikasi pembayaran sesuai dengan toko</li>
+                  <li><strong className="text-foreground">Upload bukti pembayaran</strong> di atas</li>
+                  <li>Pesanan akan diproses setelah pembayaran dikonfirmasi oleh penjual</li>
+                </ol>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
       </div>
 
       {/* Bottom Actions */}
