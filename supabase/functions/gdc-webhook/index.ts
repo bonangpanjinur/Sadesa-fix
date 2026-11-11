@@ -60,17 +60,6 @@ function safeEqual(a: string, b: string): boolean {
   return result === 0;
 }
 
-function parseAmount(value: unknown): number | null {
-  const raw = value && typeof value === "object" && !Array.isArray(value) && "value" in value
-    ? (value as { value: unknown }).value
-    : value;
-  if (typeof raw !== "string" && typeof raw !== "number") return null;
-  if (typeof raw === "string" && !/^\d+(?:\.\d{1,2})?$/.test(raw)) return null;
-  const amount = Number(raw);
-  const cents = Math.round(amount * 100);
-  return Number.isFinite(amount) && amount > 0 && Number.isSafeInteger(cents) ? cents / 100 : null;
-}
-
 serve(async (req: Request) => {
   if (req.method !== "POST") {
     return jsonResponse(
@@ -91,6 +80,10 @@ serve(async (req: Request) => {
       500,
     );
   }
+
+  const supabase = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false },
+  });
 
   const authorization = req.headers.get("authorization") ?? "";
   const timestamp = req.headers.get("x-timestamp") ?? "";
@@ -168,18 +161,7 @@ serve(async (req: Request) => {
   const partnerReferenceNo = payload.originalPartnerReferenceNo;
   const referenceNo = payload.originalReferenceNo;
   const transactionStatus = payload.latestTransactionStatus;
-  const amountPayload = payload.amount ?? payload.paidAmount;
-  const paidAmount = parseAmount(amountPayload);
-
-  const additionalInfo =
-    payload.additionalInfo && typeof payload.additionalInfo === "object"
-      ? (payload.additionalInfo as Record<string, unknown>)
-      : {};
-
-  const paymentDate =
-    typeof additionalInfo.paymentDate === "string"
-      ? additionalInfo.paymentDate
-      : new Date().toISOString();
+  const paymentDate = parseGdcCallbackPaymentDate(payload);
 
   if (
     typeof partnerReferenceNo !== "string" ||
@@ -193,15 +175,18 @@ serve(async (req: Request) => {
     );
   }
 
-  // Handle status gagal (06 = FAILED)
+  // Handle status gagal (06 = FAILED) for observability only; the ledger
+  // update happens after the MPM record is validated below.
   if (transactionStatus === "06") {
     console.warn("GDC reports failed QRIS transaction", {
       partnerReferenceNo,
       referenceNo,
     });
+  }
 
-  // QR MPM has its own immutable payment ledger and settlement RPC. Do not
-  // route these callbacks through the legacy invoice webhook path.
+  // QR MPM has its own immutable payment ledger and settlement RPC. This is
+  // the only supported GDC callback path; legacy invoice callbacks are not
+  // processed here.
   const { data: mpmPayment, error: mpmLookupError } = await supabase
     .from("gdc_qris_mpm_payments")
     .select("order_id, partner_reference_no, reference_no, provider_external_id, amount, currency, status")
@@ -235,6 +220,12 @@ serve(async (req: Request) => {
       }
       return jsonResponse({ responseCode: "2000000", responseMessage: "Failure notification acknowledged" });
     }
+    if (transactionStatus !== "00") {
+      return jsonResponse(
+        { responseCode: "4000000", responseMessage: "Unsupported transaction status" },
+        400,
+      );
+    }
     if (!paymentDate) {
       return jsonResponse({ responseCode: "4000000", responseMessage: "Invalid payment date" }, 400);
     }
@@ -254,83 +245,8 @@ serve(async (req: Request) => {
     return jsonResponse({ responseCode: "2000000", responseMessage: "Successful", data: { order_id: mpmPayment.order_id } });
   }
 
-  // Hanya proses status sukses (00 = SUCCESS)
-  if (transactionStatus !== "00") {
-    return jsonResponse(
-      {
-        responseCode: "4000000",
-        responseMessage: "Unsupported transaction status",
-      },
-      400,
-    );
-  }
-
-  const admin = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false },
-  });
-
-  // 1. Ambil order terkait
-  const { data: order, error: fetchError } = await admin
-    .from("orders")
-    .select("id, total, payment_status")
-    .eq("id", partnerReferenceNo)
-    .maybeSingle();
-
-  if (fetchError || !order) {
-    console.error("Webhook order lookup failed:", fetchError?.message);
-    return jsonResponse(
-      { responseCode: "4040000", responseMessage: "Order not found" },
-      404,
-    );
-  }
-
-  // Idempotency: Jika order sudah status PAID, return response 200 (Success SNAP Standard)
-  if (order.payment_status === "PAID") {
-    return jsonResponse({
-      responseCode: "2000000",
-      responseMessage: "Successful (Already processed)",
-    });
-  }
-
-  // Verifikasi nominal bayar dengan total order
-  if (
-    paidAmount !== null &&
-    Math.abs(paidAmount - Number(order.total)) > 0.01
-  ) {
-    console.error("Amount mismatch:", {
-      expected: order.total,
-      received: paidAmount,
-    });
-    return jsonResponse(
-      { responseCode: "4000000", responseMessage: "Payment amount mismatch" },
-      400,
-    );
-  }
-
-  // 2. Update status order menjadi PAID sesuai skema tabel
-  const { error: updateError } = await admin
-    .from("orders")
-    .update({
-      payment_status: "PAID",
-      payment_paid_at: paymentDate,
-      payment_method: "ONLINE",
-      payment_channel: "GDC_QRIS",
-      payment_invoice_id: referenceNo,
-      payment_external_id: externalId,
-      status_updated_at: new Date().toISOString(),
-    })
-    .eq("id", order.id);
-
-  if (updateError) {
-    console.error("Failed to update order status:", updateError.message);
-    return jsonResponse(
-      { responseCode: "5000000", responseMessage: "Database update failed" },
-      500,
-    );
-  }
-
-  return jsonResponse({
-    responseCode: "2000000",
-    responseMessage: "Successful",
-  });
+  return jsonResponse(
+    { responseCode: "4040000", responseMessage: "QR MPM payment not found" },
+    404,
+  );
 });
