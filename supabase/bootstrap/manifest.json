@@ -1,8 +1,8 @@
 {
   "idempotent": true,
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 346,
-  "bundle_count": 140,
+  "migration_count": 341,
+  "bundle_count": 135,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -483,7 +483,7 @@
     {
       "file": "122_20261014174600_ride_pickup_landmark.sql",
       "source_files": [
-        "20261014174600_ride_pickup_landmark.sql"
+        "122_20261014174600_ride_pickup_landmark.sql"
       ],
       "sha256": "057db744df194bf67f7935bc87de0222159098af72d9e18a42af10b0b0e925f2",
       "bytes": 2611
@@ -591,46 +591,6 @@
       ],
       "sha256": "621c1198bbe488026ec1e78880b7d86dd09b2b851d579048d1f4eba88357666d",
       "bytes": 8470
-    },
-    {
-      "file": "134_20261101143000_gdc_qris_mpm_checkout.sql",
-      "source_files": [
-        "134_20261101143000_gdc_qris_mpm_checkout.sql"
-      ],
-      "sha256": "9114d71a3e856ee0adf1df7a396f402951955a8061263d6c242d113d65793a37",
-      "bytes": 12821
-    },
-    {
-      "file": "135_20261103072000_qris_mpm_optional_static.sql",
-      "source_files": [
-        "135_20261103072000_qris_mpm_optional_static.sql"
-      ],
-      "sha256": "b48e5ad875100b03552d432a695ce14396812eb00c1c366404ebf4876af3df29",
-      "bytes": 4443
-    },
-    {
-      "file": "136_20261103090000_qris_mpm_admin_fallback.sql",
-      "source_files": [
-        "136_20261103090000_qris_mpm_admin_fallback.sql"
-      ],
-      "sha256": "3ed1f9bfb436351913d78a19d182e5215365a3103555de31b3b27b9f8598bf38",
-      "bytes": 6720
-    },
-    {
-      "file": "137_20261103095000_qris_mpm_hardening.sql",
-      "source_files": [
-        "137_20261103095000_qris_mpm_hardening.sql"
-      ],
-      "sha256": "da2b1ba2b6d470735fd51a4bf422ae54cfdb3d25e7f77c6c0134856b78091762",
-      "bytes": 12544
-    },
-    {
-      "file": "138_20261109100000_checkout_qris_finality.sql",
-      "source_files": [
-        "138_20261109100000_checkout_qris_finality.sql"
-      ],
-      "sha256": "5f6bdf8297069a2b2412810b83613d2eaa05fe7cb1fe22c1a68d984a77c3d819",
-      "bytes": 24903
     },
     {
       "file": "13_20260923150000_pwa_device_ip_audit.sql",

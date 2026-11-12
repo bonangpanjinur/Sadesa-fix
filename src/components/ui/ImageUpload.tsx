@@ -20,9 +20,6 @@ interface ImageUploadProps {
   disabled?: boolean;
   stableFileName?: boolean;
   objectFit?: 'cover' | 'contain';
-  /** Keep the shared picker/preview UI but let the parent upload later. */
-  deferUpload?: boolean;
-  onFileSelected?: (file: File) => boolean | void;
 }
 
 export function ImageUpload({
@@ -39,8 +36,6 @@ export function ImageUpload({
   disabled = false,
   stableFileName = false,
   objectFit = 'cover',
-  deferUpload = false,
-  onFileSelected,
 }: ImageUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -83,14 +78,6 @@ export function ImageUpload({
           toast.error(`Rasio gambar harus sekitar ${targetRatio}:1. File ini ${dimensions.width} × ${dimensions.height} px (${actualRatio}:1). Crop gambar terlebih dahulu.`);
           return;
         }
-      }
-
-      if (deferUpload) {
-        const accepted = onFileSelected?.(file);
-        if (accepted === false) return;
-        onChange(URL.createObjectURL(file));
-        toast.success('Foto siap diunggah');
-        return;
       }
 
       // Compress image

@@ -75,7 +75,7 @@ describe('guest checkout security contract', () => {
 
   it('does not expose online payment as a guest checkout option', () => {
     const checkout = read('src/pages/CheckoutPage.tsx');
-    expect(checkout).toContain('disabled={!user || gdcMpmAvailability !== \'available\'}');
-    expect(checkout).not.toContain('<RadioGroupItem value="ONLINE"');
+    expect(checkout).toContain("if (!user) return 'TRANSFER'");
+    expect(checkout).toContain('{user && xenditAvailable && (');
   });
 });
