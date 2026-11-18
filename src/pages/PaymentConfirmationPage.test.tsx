@@ -94,7 +94,7 @@ describe('PaymentConfirmationPage authoritative order total', () => {
     await waitFor(() => expect(screen.getByText('Total Pembayaran')).toBeInTheDocument());
     expect(screen.getByText((content) => content.replace(/[\s\u00a0]/g, '') === formatPrice(125_000).replace(/[\s\u00a0]/g, ''))).toBeInTheDocument();
     expect(screen.getByAltText('QRIS Payment')).toHaveAttribute('src', 'https://example.com/merchant-qris.png');
-    expect(screen.queryByText('123456789')).not.toBeInTheDocument();
-    expect(screen.queryByText('Bank Test')).not.toBeInTheDocument();
+    expect(screen.getByText('123456789')).toBeInTheDocument();
+    expect(screen.getByText('Bank Test')).toBeInTheDocument();
   });
 });

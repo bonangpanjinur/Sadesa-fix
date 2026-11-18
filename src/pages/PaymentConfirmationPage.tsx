@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Copy, CheckCircle, QrCode as QrIcon, Clock, AlertTriangle, RefreshCw, Loader2 } from 'lucide-react';
+import { ArrowLeft, Copy, CheckCircle, QrCode as QrIcon, CreditCard, Clock, AlertTriangle, RefreshCw, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import QRCode from 'react-qr-code';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,9 @@ import { createOrGetGdcQrisMpm, queryGdcQrisMpmStatus, type GdcQrisMpmPayment } 
 
 interface PaymentInfo {
   qrisImageUrl: string | null;
+  bankName: string | null;
+  bankAccountNumber: string | null;
+  bankAccountName: string | null;
 }
 
 interface OrderInfo {
@@ -68,11 +71,14 @@ export default function PaymentConfirmationPage() {
           p_guest_access_token: guestToken,
         } as never);
         if (error || !data) throw new Error('Pesanan guest tidak ditemukan atau link sudah kedaluwarsa');
-        const context = data as OrderInfo & { qris_image_url?: string | null };
+        const context = data as OrderInfo & { qris_image_url?: string | null; bank_name?: string | null; bank_account_number?: string | null; bank_account_name?: string | null };
         orderData = context;
         paymentDestination = {
           merchant_name: context.merchant_name,
           qris_image_url: context.qris_image_url,
+          bank_name: context.bank_name,
+          bank_account_number: context.bank_account_number,
+          bank_account_name: context.bank_account_name,
         };
       } else if (user) {
         const result = await supabase
@@ -92,6 +98,9 @@ export default function PaymentConfirmationPage() {
       setOrder({ ...orderData, merchant_name: String(paymentDestination.merchant_name || orderData.merchant_name || 'Merchant') });
       setPaymentInfo({
         qrisImageUrl: typeof paymentDestination.qris_image_url === 'string' ? paymentDestination.qris_image_url : null,
+        bankName: typeof paymentDestination.bank_name === 'string' ? paymentDestination.bank_name : null,
+        bankAccountNumber: typeof paymentDestination.bank_account_number === 'string' ? paymentDestination.bank_account_number : null,
+        bankAccountName: typeof paymentDestination.bank_account_name === 'string' ? paymentDestination.bank_account_name : null,
       });
     } catch (error) {
       console.error('Error loading payment info:', error);
@@ -195,7 +204,7 @@ export default function PaymentConfirmationPage() {
   const isPaymentRejected = paymentStatus === 'FAILED' || paymentStatus === 'REJECTED';
   const isPaymentExpired = paymentStatus === 'EXPIRED'
     || Boolean(order.confirmation_deadline && Date.parse(order.confirmation_deadline) <= Date.now() && !isPaymentComplete);
-  const hasPaymentInstructions = Boolean(paymentInfo.qrisImageUrl);
+  const hasPaymentInstructions = Boolean(paymentInfo.qrisImageUrl || (paymentInfo.bankName && paymentInfo.bankAccountNumber && paymentInfo.bankAccountName));
   const statusLabel = isPaymentComplete ? 'Pembayaran Diterima' : isPaymentExpired ? 'Pembayaran Kedaluwarsa' : isPaymentRejected ? 'Bukti Ditolak' : 'Menunggu Pembayaran';
 
   return (
@@ -273,7 +282,7 @@ export default function PaymentConfirmationPage() {
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
               <div>
                 <p className="font-bold">Menunggu instruksi pembayaran</p>
-                <p className="mt-1">QRIS merchant belum tersedia untuk pesanan ini. Jangan melakukan pembayaran sebelum QRIS resmi ditampilkan.</p>
+                <p className="mt-1">QRIS atau rekening bank merchant belum tersedia untuk pesanan ini. Jangan melakukan pembayaran sebelum instruksi resmi ditampilkan.</p>
               </div>
             </CardContent>
           </Card>
@@ -360,6 +369,25 @@ export default function PaymentConfirmationPage() {
           </motion.div>
         )}
 
+        {!isGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && paymentInfo.bankName && paymentInfo.bankAccountNumber && paymentInfo.bankAccountName && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <CreditCard className="h-5 w-5 text-primary" />
+                  <h3 className="font-bold">Transfer Bank</h3>
+                </div>
+                <div className="space-y-1 rounded-lg border bg-secondary/50 p-3 text-sm">
+                  <p><span className="text-muted-foreground">Bank:</span> {paymentInfo.bankName}</p>
+                  <p><span className="text-muted-foreground">Nomor rekening:</span> {paymentInfo.bankAccountNumber}</p>
+                  <p><span className="text-muted-foreground">Atas nama:</span> {paymentInfo.bankAccountName}</p>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">Transfer sesuai total pembayaran, kemudian unggah bukti transfer di bawah.</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
         {/* Upload Bukti Pembayaran (Hanya untuk QRIS Manual Toko) */}
         {!isGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && hasPaymentInstructions && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
@@ -368,7 +396,7 @@ export default function PaymentConfirmationPage() {
                 <h3 className="font-bold text-sm mb-3">Upload Bukti Pembayaran</h3>
                 {order.payment_status === 'FAILED' && (
                   <p role="alert" className="mb-3 rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm text-muted-foreground">
-                    Bukti sebelumnya ditolak. Unggah bukti pembayaran QRIS yang benar; status akan kembali menunggu verifikasi setelah berhasil diunggah.
+                    Bukti sebelumnya ditolak. Unggah ulang bukti pembayaran QRIS atau transfer bank yang benar; status akan kembali menunggu verifikasi setelah berhasil diunggah.
                   </p>
                 )}
                 <PaymentProofUpload
@@ -390,8 +418,8 @@ export default function PaymentConfirmationPage() {
               <CardContent className="p-4">
                 <h3 className="font-bold text-sm mb-3">Petunjuk Pembayaran</h3>
                 <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside">
-                  <li>Pindai QRIS merchant dan bayar sesuai <strong className="text-foreground">nominal yang tertera</strong></li>
-                  <li>Pastikan nama merchant pada aplikasi pembayaran sesuai dengan toko</li>
+                  <li>Bayar melalui QRIS atau transfer bank sesuai <strong className="text-foreground">total yang tertera</strong></li>
+                  <li>Pastikan tujuan pembayaran sesuai dengan nama merchant atau rekening pada instruksi</li>
                   <li><strong className="text-foreground">Upload bukti pembayaran</strong> di atas</li>
                   <li>Pesanan akan diproses setelah pembayaran dikonfirmasi oleh penjual</li>
                 </ol>

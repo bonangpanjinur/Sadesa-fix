@@ -361,21 +361,21 @@ describe('CheckoutPage scenario regressions', () => {
     expect(screen.queryByText('Pesanan Berhasil!')).not.toBeInTheDocument();
   });
 
-  it('shows only the active merchant QRIS and never renders bank account details', async () => {
+  it('shows active QRIS and bank transfer instructions without online checkout', async () => {
     await preparePickupCheckout();
 
     expect(screen.getByText('QRIS toko')).toBeInTheDocument();
     expect(screen.getByAltText('QRIS Toko Demo')).toHaveAttribute('src', 'https://example.com/merchant-qris.png');
-    expect(screen.queryByText('1234567890')).not.toBeInTheDocument();
-    expect(screen.queryByText('Bank SaDesa')).not.toBeInTheDocument();
+    expect(screen.getByText('1234567890')).toBeInTheDocument();
+    expect(screen.getByText('Bank SaDesa')).toBeInTheDocument();
     expect(screen.queryByRole('radio', { name: /online/i })).not.toBeInTheDocument();
   });
 
   it('blocks checkout until the merchant has an active QRIS', async () => {
-    mockCheckout.merchantRows = [{ ...(mockCheckout.merchantRows[0] as Record<string, unknown>), qris_image_url: null }];
+    mockCheckout.merchantRows = [{ ...(mockCheckout.merchantRows[0] as Record<string, unknown>), qris_image_url: null, bank_name: null, bank_account_number: null, bank_account_name: null }];
     await preparePickupCheckout();
 
-    expect(screen.getByRole('alert')).toHaveTextContent('QRIS toko belum aktif');
+    expect(screen.getByRole('alert')).toHaveTextContent('QRIS atau rekening bank merchant belum tersedia');
     const submitButton = document.querySelector('button[type="submit"]') as HTMLButtonElement | null;
     expect(submitButton?.disabled).toBe(true);
     expect(mockCheckout.rpc.mock.calls.some(([name]) => name === 'create_marketplace_checkout')).toBe(false);

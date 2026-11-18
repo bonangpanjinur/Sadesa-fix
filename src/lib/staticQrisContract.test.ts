@@ -6,6 +6,10 @@ const migration = readFileSync(
   resolve(process.cwd(), 'supabase/bootstrap/135_20261118180000_static_qris_and_checkout_overload_repair.sql'),
   'utf8',
 );
+const manualPaymentMigration = readFileSync(
+  resolve(process.cwd(), 'supabase/bootstrap/136_20261118183000_manual_qris_or_bank_payment.sql'),
+  'utf8',
+);
 const settingsPage = readFileSync(
   resolve(process.cwd(), 'src/pages/merchant/MerchantSettingsPage.tsx'),
   'utf8',
@@ -31,5 +35,12 @@ describe('static merchant QRIS contract', () => {
     expect(settingsPage).toContain('path={`qris/${merchant.id}`}');
     expect(settingsPage).toContain('qris_image_url: qrisImageUrl || null');
     expect(settingsPage).toContain('QRIS statis merchant');
+  });
+
+  it('keeps manual QRIS or bank transfer on the existing proof workflow', () => {
+    expect(manualPaymentMigration).toContain('Merchant belum mengatur QRIS atau rekening bank');
+    expect(manualPaymentMigration).toContain("'bank_account_number', v_merchant.bank_account_number");
+    expect(manualPaymentMigration).toContain("'qris_image_url', v_merchant.qris_image_url");
+    expect(manualPaymentMigration).toContain("'bank_account_number', v_order.payment_destination_snapshot->>'bank_account_number'");
   });
 });

@@ -44,6 +44,9 @@ interface MerchantOperatingInfo {
 
 interface MerchantPaymentSettings {
   qrisImageUrl: string | null;
+  bankName: string | null;
+  bankAccountNumber: string | null;
+  bankAccountName: string | null;
 }
 
 interface ShippingZoneEstimate {
@@ -397,7 +400,7 @@ export default function CheckoutPage() {
         // Get location and payment settings of first merchant (simplified - assumes single merchant checkout)
         const { data, error } = await supabase
           .from('merchants')
-          .select('location_lat, location_lng, province, city, district, qris_image_url')
+          .select('location_lat, location_lng, province, city, district, qris_image_url, bank_name, bank_account_number, bank_account_name')
           .eq('id', firstMerchantId)
           .maybeSingle();
         if (error) throw error;
@@ -418,6 +421,9 @@ export default function CheckoutPage() {
         if (cancelled) return;
         setMerchantPaymentSettings({
           qrisImageUrl: data.qris_image_url,
+          bankName: data.bank_name,
+          bankAccountNumber: data.bank_account_number,
+          bankAccountName: data.bank_account_name,
         });
         setPaymentSettingsLoadState({ merchantId: firstMerchantId, status: 'ready' });
       } catch (error) {
@@ -521,7 +527,13 @@ export default function CheckoutPage() {
     paymentSettingsLoadState.merchantId,
     firstMerchantId,
   ) && merchantPaymentSettings !== null;
-  const paymentReady = paymentSettingsReady && Boolean(merchantPaymentSettings?.qrisImageUrl?.trim());
+  const hasMerchantBank = Boolean(
+    merchantPaymentSettings?.bankName?.trim()
+      && merchantPaymentSettings.bankAccountNumber?.trim()
+      && merchantPaymentSettings.bankAccountName?.trim(),
+  );
+  const hasMerchantQris = Boolean(merchantPaymentSettings?.qrisImageUrl?.trim());
+  const paymentReady = paymentSettingsReady && (hasMerchantQris || hasMerchantBank);
 
   // Remove items from a specific merchant
   const handleRemoveMerchantItems = (merchantId: string) => {
@@ -598,8 +610,8 @@ export default function CheckoutPage() {
 
     if (!paymentReady) {
       toast({
-        title: 'QRIS merchant belum aktif',
-        description: 'Admin harus mengunggah dan mengaktifkan QRIS merchant sebelum checkout dapat dilanjutkan.',
+        title: 'Instruksi pembayaran belum tersedia',
+        description: 'Merchant belum mengatur QRIS atau rekening bank untuk pembayaran manual.',
         variant: 'destructive',
       });
       return;
@@ -1230,7 +1242,7 @@ export default function CheckoutPage() {
             <h3 className="font-bold text-foreground">{t('checkout.payment.title')}</h3>
           </div>
 
-          {merchantPaymentSettings?.qrisImageUrl ? (
+          {hasMerchantQris && (
             <div className="mt-3 rounded-lg border bg-secondary/50 p-3">
               <p className="mb-2 text-sm font-semibold">QRIS toko</p>
               <div className="flex justify-center rounded border bg-card p-3">
@@ -1238,9 +1250,21 @@ export default function CheckoutPage() {
               </div>
               <p className="mt-2 text-xs text-muted-foreground">Pindai QRIS ini untuk membayar pesanan ke merchant yang dipilih.</p>
             </div>
-          ) : (
+          )}
+          {hasMerchantBank && (
+            <div className="mt-3 rounded-lg border bg-secondary/50 p-3">
+              <p className="mb-2 text-sm font-semibold">Transfer bank</p>
+              <div className="space-y-1 text-sm">
+                <p><span className="text-muted-foreground">Bank:</span> {merchantPaymentSettings?.bankName}</p>
+                <p><span className="text-muted-foreground">Nomor rekening:</span> {merchantPaymentSettings?.bankAccountNumber}</p>
+                <p><span className="text-muted-foreground">Atas nama:</span> {merchantPaymentSettings?.bankAccountName}</p>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">Transfer sesuai nominal pesanan, lalu upload bukti pembayaran pada halaman pembayaran.</p>
+            </div>
+          )}
+          {!hasMerchantQris && !hasMerchantBank && (
             <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
-              QRIS toko belum aktif. Checkout belum dapat dilanjutkan sampai admin mengunggah dan mengaktifkan QRIS merchant ini.
+              QRIS atau rekening bank merchant belum tersedia. Checkout belum dapat dilanjutkan.
             </div>
           )}
           {paymentMethod === 'QRIS_DYNAMIC' && (
