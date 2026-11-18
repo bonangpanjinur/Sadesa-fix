@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { observe, reportObservability } from '@/lib/observability';
 import { fitImageDimensions, type ImageCompressionOptions } from '@/lib/imageCompression';
 
-export type StorageBucket = 'products' | 'product-images' | 'tourism-images' | 'profile-images' | 'merchant-images' | 'promotions' | 'pod-images' | 'village-images' | 'payment-proofs' | 'admin-assets';
+export type StorageBucket = 'products' | 'product-images' | 'tourism-images' | 'profile-images' | 'merchant-images' | 'qris-merchant-static' | 'promotions' | 'pod-images' | 'village-images' | 'payment-proofs' | 'admin-assets';
 
 interface UploadOptions {
   bucket: StorageBucket;

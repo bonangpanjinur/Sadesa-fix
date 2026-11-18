@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Save, Store, MapPin, FileText, Loader2, CreditCard, Bell, Shield, CheckCircle2, Link as LinkIcon, Eye, EyeOff, Navigation, Tags } from 'lucide-react';
+import { Save, Store, MapPin, FileText, Loader2, CreditCard, QrCode, Bell, Shield, CheckCircle2, Link as LinkIcon, Eye, EyeOff, Navigation, Tags } from 'lucide-react';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,7 +21,6 @@ import { AddressDropdowns } from '@/components/admin/AddressDropdowns';
 import { MerchantLocationPicker } from '@/components/merchant/MerchantLocationPicker';
 import { fetchDistricts, fetchProvinces, fetchRegencies, fetchVillages } from '@/lib/addressApi';
 import { MerchantOperatingHoursCard } from '@/components/merchant/MerchantOperatingHoursCard';
-import { MerchantQrisApplicationCard } from '@/components/merchant/MerchantQrisApplicationCard';
 import { OrderAlarmSettingsControl } from '@/components/notifications/OrderAlarmSettingsControl';
 
 interface MerchantData {
@@ -77,6 +76,7 @@ export default function MerchantSettingsPage() {
   });
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
+  const [qrisImageUrl, setQrisImageUrl] = useState<string | null>(null);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
 
   const { data: merchant, isLoading: fetchLoading } = useQuery<MerchantData | null>({
@@ -145,6 +145,7 @@ export default function MerchantSettingsPage() {
     });
     setImageUrl(merchant.image_url);
     setCoverImageUrl(merchant.cover_image_url);
+    setQrisImageUrl(merchant.qris_image_url);
 
     let active = true;
     const resolveAddressCodes = async () => {
@@ -203,6 +204,7 @@ export default function MerchantSettingsPage() {
           payment_cod_enabled: false,
           image_url: imageUrl || null,
           cover_image_url: coverImageUrl || null,
+          qris_image_url: qrisImageUrl || null,
         },
         p_category_ids: selectedCategoryIds,
       });
@@ -475,7 +477,7 @@ export default function MerchantSettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2"><CreditCard className="h-5 w-5" />Pengaturan Pembayaran</CardTitle>
-            <CardDescription>Simpan rekening bank untuk pengelolaan admin dan pencairan dana. Pembeli hanya membayar dengan QRIS yang diterbitkan dan diaktifkan admin.</CardDescription>
+            <CardDescription>Simpan rekening bank untuk pengelolaan admin dan pencairan dana, lalu unggah QRIS statis toko agar pembeli dapat membayar langsung ke merchant.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div role="status" className="rounded-lg border border-warning/30 bg-warning/5 p-3">
@@ -485,8 +487,8 @@ export default function MerchantSettingsPage() {
               </p>
             </div>
             <div role="status" className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
-              <p className="font-medium">Metode checkout: QRIS merchant</p>
-              <p className="mt-1 text-xs text-muted-foreground">QRIS dikelola admin setelah data merchant diverifikasi. Pengaturan pembayaran di sini tidak mengunggah atau mengubah QRIS.</p>
+              <p className="font-medium">Metode checkout: QRIS statis merchant</p>
+              <p className="mt-1 text-xs text-muted-foreground">Unggah QRIS milik toko Anda. QRIS akan ditampilkan pada checkout setelah disimpan; QRIS dinamis/provider akan dikonfigurasi admin pada tahap berikutnya.</p>
             </div>
             <div className="space-y-4 border-t pt-4">
               <h4 className="font-medium text-sm flex items-center gap-2"><CreditCard className="h-4 w-4" />Rekening Bank</h4>
@@ -506,10 +508,26 @@ export default function MerchantSettingsPage() {
               </div>
               <p className="text-xs text-muted-foreground bg-muted p-2 rounded">Rekening bank ini disimpan untuk kebutuhan admin dan pencairan dana. Informasi rekening tidak ditampilkan kepada pembeli saat checkout.</p>
             </div>
+            <div className="space-y-3 border-t pt-4">
+              <div>
+                <h4 className="flex items-center gap-2 text-sm font-medium"><QrCode className="h-4 w-4" />QRIS Statis Toko</h4>
+                <p className="mt-1 text-xs text-muted-foreground">Gunakan gambar QRIS resmi yang terdaftar atas nama toko ini. Pastikan gambar jelas dan pembeli dapat memindainya.</p>
+              </div>
+              <ImageUpload
+                value={qrisImageUrl}
+                onChange={setQrisImageUrl}
+                bucket="qris-merchant-static"
+                path={`qris/${merchant.id}`}
+                aspectRatio="square"
+                objectFit="contain"
+                maxSizeMB={5}
+                stableFileName
+                placeholder="Upload QRIS statis toko"
+              />
+              <p className="text-xs text-muted-foreground">Format JPG/PNG, maksimal 5 MB. QRIS lama akan digantikan saat Anda menyimpan QRIS baru.</p>
+            </div>
           </CardContent>
         </Card>
-
-        <MerchantQrisApplicationCard merchantId={merchant.id} merchantName={merchant.name} qrisImageUrl={merchant.qris_image_url} bankName={merchant.bank_name} accountNumber={merchant.bank_account_number} accountName={merchant.bank_account_name} />
 
         <Card>
           <CardHeader>
