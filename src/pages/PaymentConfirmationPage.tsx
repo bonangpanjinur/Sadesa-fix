@@ -14,6 +14,7 @@ import { toast } from '@/hooks/use-toast';
 import { PaymentProofUpload } from '@/components/checkout/PaymentProofUpload';
 import { PaymentCountdown } from '@/components/checkout/PaymentCountdown';
 import { createOrGetGdcQrisMpm, queryGdcQrisMpmStatus, type GdcQrisMpmPayment } from '@/lib/gdcQrisMpmApi';
+import { getStaticQrisPublicUrl } from '@/lib/staticQris';
 
 interface PaymentInfo {
   qrisImageUrl: string | null;
@@ -97,7 +98,7 @@ export default function PaymentConfirmationPage() {
       if (!orderData) throw new Error('Pesanan tidak ditemukan');
       setOrder({ ...orderData, merchant_name: String(paymentDestination.merchant_name || orderData.merchant_name || 'Merchant') });
       setPaymentInfo({
-        qrisImageUrl: typeof paymentDestination.qris_image_url === 'string' ? paymentDestination.qris_image_url : null,
+        qrisImageUrl: getStaticQrisPublicUrl(typeof paymentDestination.qris_image_url === 'string' ? paymentDestination.qris_image_url : null),
         bankName: typeof paymentDestination.bank_name === 'string' ? paymentDestination.bank_name : null,
         bankAccountNumber: typeof paymentDestination.bank_account_number === 'string' ? paymentDestination.bank_account_number : null,
         bankAccountName: typeof paymentDestination.bank_account_name === 'string' ? paymentDestination.bank_account_name : null,

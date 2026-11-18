@@ -22,6 +22,7 @@ import { MerchantLocationPicker } from '@/components/merchant/MerchantLocationPi
 import { fetchDistricts, fetchProvinces, fetchRegencies, fetchVillages } from '@/lib/addressApi';
 import { MerchantOperatingHoursCard } from '@/components/merchant/MerchantOperatingHoursCard';
 import { OrderAlarmSettingsControl } from '@/components/notifications/OrderAlarmSettingsControl';
+import { getStaticQrisPublicUrl } from '@/lib/staticQris';
 
 interface MerchantData {
   id: string;
@@ -145,7 +146,7 @@ export default function MerchantSettingsPage() {
     });
     setImageUrl(merchant.image_url);
     setCoverImageUrl(merchant.cover_image_url);
-    setQrisImageUrl(merchant.qris_image_url);
+    setQrisImageUrl(getStaticQrisPublicUrl(merchant.qris_image_url));
 
     let active = true;
     const resolveAddressCodes = async () => {
