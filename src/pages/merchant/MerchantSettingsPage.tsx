@@ -522,6 +522,7 @@ export default function MerchantSettingsPage() {
                 aspectRatio="square"
                 objectFit="contain"
                 maxSizeMB={5}
+                compressionOptions={{ force: true, outputFormat: 'jpeg', quality: 0.9, maxWidth: 1600, maxHeight: 1600 }}
                 stableFileName
                 placeholder="Upload QRIS statis toko"
               />

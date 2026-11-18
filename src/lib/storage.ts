@@ -51,7 +51,7 @@ export async function uploadFile({ bucket, path, file, fileName, upsert = false 
     }, context);
   } catch (err) {
     reportObservability('upload', 'file_upload_result_error', 'error', context, err);
-    return { url: null, path: null, error: 'Gagal mengupload file' };
+    return { url: null, path: null, error: err instanceof Error ? err.message : 'Gagal mengupload file' };
   }
 }
 
