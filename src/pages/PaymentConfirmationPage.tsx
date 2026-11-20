@@ -55,7 +55,7 @@ export default function PaymentConfirmationPage() {
   const [gdcLoading, setGdcLoading] = useState(false);
   const [gdcError, setGdcError] = useState<string | null>(null);
 
-  const isGdcMpmPayment = isGdcMpmProvider || Boolean(gdcPayment) || order?.payment_channel === 'gdc_mpm';
+  const isGdcMpmPayment = isGdcMpmProvider || Boolean(gdcPayment) || order?.payment_channel === 'QRIS_MPM_GDC';
 
   // Load data pesanan utama
   const loadOrderAndPaymentInfo = useCallback(async (showLoading = true) => {
@@ -170,6 +170,21 @@ export default function PaymentConfirmationPage() {
       void loadGdcPayment();
     }
   }, [isGdcMpmProvider, orderId, gdcPayment, gdcLoading, loadGdcPayment]);
+
+  useEffect(() => {
+    if (!isGdcMpmProvider || !orderId || !gdcPayment || !['PENDING'].includes(gdcPayment.status)) return;
+    const poll = window.setInterval(async () => {
+      try {
+        const payment = await queryGdcQrisMpmStatus(orderId);
+        setGdcPayment(payment);
+        await loadOrderAndPaymentInfo(false);
+        if (payment.status === 'PAID' || payment.status === 'FAILED') window.clearInterval(poll);
+      } catch (error) {
+        console.warn('Polling status QRIS GDC gagal:', error instanceof Error ? error.message : 'unknown');
+      }
+    }, 10000);
+    return () => window.clearInterval(poll);
+  }, [gdcPayment, isGdcMpmProvider, loadOrderAndPaymentInfo, orderId]);
 
   const handleCopyAmount = () => {
     if (order?.total) {

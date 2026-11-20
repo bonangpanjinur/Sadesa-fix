@@ -93,11 +93,11 @@ export default function CheckoutPage() {
   const [orderId, setOrderId] = useState<string | null>(null);
   const [guestToken, setGuestToken] = useState<string | null>(null);
   const [deliveryType, setDeliveryType] = useState<'PICKUP' | 'INTERNAL' | 'EXPEDITION'>('INTERNAL');
-  const [paymentMethod] = useState<PaymentMethod>('TRANSFER');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('TRANSFER');
   // The first available options are visibly selected by default, so the step
   // indicator and CTA should not pretend the buyer still needs to choose them.
   const [hasChosenDelivery, setHasChosenDelivery] = useState(true);
-  const hasChosenPayment = true;
+  const hasChosenPayment = Boolean(paymentMethod);
   const [xenditAvailable, setXenditAvailable] = useState(false);
   const [paymentRecoveryError, setPaymentRecoveryError] = useState(false);
   const [retryingPayment, setRetryingPayment] = useState(false);
@@ -147,6 +147,7 @@ export default function CheckoutPage() {
   const [shippingZones, setShippingZones] = useState<ShippingZoneEstimate[]>([]);
   // Merchant payment settings
   const [merchantPaymentSettings, setMerchantPaymentSettings] = useState<MerchantPaymentSettings & { qrisImageUrl: string | null } | null>(null);
+  const [dynamicQrisAvailable, setDynamicQrisAvailable] = useState(false);
   const [paymentSettingsLoadState, setPaymentSettingsLoadState] = useState<{
     merchantId: string | null;
     status: CheckoutPaymentSettingsStatus;
@@ -386,6 +387,7 @@ export default function CheckoutPage() {
     let cancelled = false;
     if (!firstMerchantId) {
       setMerchantPaymentSettings(null);
+      setDynamicQrisAvailable(false);
       setPaymentSettingsLoadState({ merchantId: null, status: 'error' });
       return () => { cancelled = true; };
     }
@@ -399,12 +401,16 @@ export default function CheckoutPage() {
     const fetchMerchantData = async () => {
       try {
         // Get location and payment settings of first merchant (simplified - assumes single merchant checkout)
-        const { data, error } = await supabase
+        const [{ data, error }, { data: hasActiveGdcQris, error: qrisCapabilityError }] = await Promise.all([
+          supabase
           .from('merchants')
           .select('location_lat, location_lng, province, city, district, qris_image_url, bank_name, bank_account_number, bank_account_name')
           .eq('id', firstMerchantId)
-          .maybeSingle();
+          .maybeSingle(),
+          supabase.rpc('merchant_has_active_gdc_qris' as never, { p_merchant_id: firstMerchantId } as never),
+        ]);
         if (error) throw error;
+        if (qrisCapabilityError) throw qrisCapabilityError;
         if (!data) throw new Error('Pengaturan merchant tidak ditemukan');
 
         if (Number.isFinite(Number(data.location_lat)) && Number.isFinite(Number(data.location_lng)) && !cancelled) {
@@ -426,6 +432,7 @@ export default function CheckoutPage() {
           bankAccountNumber: data.bank_account_number,
           bankAccountName: data.bank_account_name,
         });
+        setDynamicQrisAvailable(Boolean(user && !hasMultipleMerchants && hasActiveGdcQris === true));
         setPaymentSettingsLoadState({ merchantId: firstMerchantId, status: 'ready' });
       } catch (error) {
         console.error('Error loading merchant payment settings:', error);
@@ -438,7 +445,7 @@ export default function CheckoutPage() {
 
     fetchMerchantData();
     return () => { cancelled = true; };
-  }, [firstMerchantId]);
+  }, [firstMerchantId, hasMultipleMerchants, user]);
 
   useEffect(() => {
     let cancelled = false;
@@ -534,7 +541,11 @@ export default function CheckoutPage() {
       && merchantPaymentSettings.bankAccountName?.trim(),
   );
   const hasMerchantQris = Boolean(merchantPaymentSettings?.qrisImageUrl?.trim());
-  const paymentReady = paymentSettingsReady && (hasMerchantQris || hasMerchantBank);
+  const paymentReady = paymentSettingsReady && (
+    paymentMethod === 'QRIS_DYNAMIC'
+      ? dynamicQrisAvailable && Boolean(user) && !hasMultipleMerchants
+      : hasMerchantQris || hasMerchantBank
+  );
 
   // Remove items from a specific merchant
   const handleRemoveMerchantItems = (merchantId: string) => {
@@ -1250,6 +1261,29 @@ export default function CheckoutPage() {
             <h3 className="font-bold text-foreground">{t('checkout.payment.title')}</h3>
           </div>
 
+          <RadioGroup
+            value={paymentMethod}
+            onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
+            className="space-y-2"
+          >
+            {user && dynamicQrisAvailable && !hasMultipleMerchants && (
+              <label className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition ${paymentMethod === 'QRIS_DYNAMIC' ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                <RadioGroupItem value="QRIS_DYNAMIC" id="qris-dynamic" />
+                <div className="flex-1">
+                  <p className="font-bold text-sm">QRIS Dinamis GDC</p>
+                  <p className="text-xs text-muted-foreground">QR unik dibuat setelah pesanan tersimpan dan diverifikasi otomatis.</p>
+                </div>
+              </label>
+            )}
+            <label className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition ${paymentMethod === 'TRANSFER' ? 'border-primary bg-primary/5' : 'border-border'}`}>
+              <RadioGroupItem value="TRANSFER" id="transfer-manual" />
+              <div className="flex-1">
+                <p className="font-bold text-sm">Transfer / QRIS Manual</p>
+                <p className="text-xs text-muted-foreground">Bayar sesuai instruksi toko, lalu unggah bukti pembayaran.</p>
+              </div>
+            </label>
+          </RadioGroup>
+
           {hasMerchantQris && (
             <div className="mt-3 rounded-lg border bg-secondary/50 p-3">
               <p className="mb-2 text-sm font-semibold">QRIS toko</p>
@@ -1275,7 +1309,7 @@ export default function CheckoutPage() {
               QRIS atau rekening bank merchant belum tersedia. Checkout belum dapat dilanjutkan.
             </div>
           )}
-          {paymentMethod === 'QRIS_DYNAMIC' && (
+          {paymentMethod === 'QRIS_DYNAMIC' && dynamicQrisAvailable && (
             <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-foreground" role="status">
               QR akan dibuat setelah pesanan tersimpan menggunakan Merchant ID GDC yang sudah diverifikasi admin. Pembayaran masuk langsung ke akun merchant.
             </div>
@@ -1378,7 +1412,7 @@ export default function CheckoutPage() {
           <CreditCard className="h-3.5 w-3.5" />
           <span>
             {t('shipping.payVia')}: <span className="font-medium text-foreground">
-              QRIS
+              {paymentMethod === 'QRIS_DYNAMIC' ? 'QRIS Dinamis GDC' : 'Transfer / QRIS Manual'}
             </span>
           </span>
         </div>
