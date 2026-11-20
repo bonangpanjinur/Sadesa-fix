@@ -5,7 +5,7 @@ vi.mock('@/integrations/supabase/client', () => ({
   supabase: { functions: { invoke } },
 }));
 
-import { createOrGetGdcQrisMpm, queryGdcQrisMpmStatus } from './gdcQrisMpmApi';
+import { createOrGetGdcQrisMpm, previewGdcQrisMpm, queryGdcQrisMpmStatus } from './gdcQrisMpmApi';
 
 describe('GDC QRIS MPM client contract', () => {
   beforeEach(() => invoke.mockReset());
@@ -30,5 +30,15 @@ describe('GDC QRIS MPM client contract', () => {
   it('surfaces backend errors without requiring provider secrets in the browser', async () => {
     invoke.mockResolvedValue({ data: null, error: new Error('401 Unauthorized') });
     await expect(createOrGetGdcQrisMpm('order-3')).rejects.toThrow('401 Unauthorized');
+  });
+
+  it('requests a sandbox preview by application ID and validates the fixed Rp1,000 response', async () => {
+    const preview = { status: 'PREVIEW', amount: 1000, currency: 'IDR', qr_content: 'sandbox-emv', reference_no: 'sandbox-ref-1' };
+    invoke.mockResolvedValue({ data: preview, error: null });
+    await expect(previewGdcQrisMpm('application-1')).resolves.toEqual(preview);
+    expect(invoke).toHaveBeenCalledWith('gdc-qris-mpm', { body: { action: 'admin_preview', application_id: 'application-1' } });
+
+    invoke.mockResolvedValue({ data: { ...preview, amount: 10000 }, error: null });
+    await expect(previewGdcQrisMpm('application-1')).rejects.toThrow('Respons QR uji GDC tidak valid.');
   });
 });
