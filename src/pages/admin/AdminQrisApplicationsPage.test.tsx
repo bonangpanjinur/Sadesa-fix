@@ -154,4 +154,20 @@ describe('Admin QRIS GDC mapping controls', () => {
       p_gdc_account_number: '000222',
     }));
   });
+
+  it('lets admins save the GDC mapping while QRIS is pending activation without enabling dynamic MPM', async () => {
+    arrange(application({ status: 'ISSUED_PENDING_ACTIVATION' }));
+    await selectApplication();
+
+    fireEvent.change(await screen.findByLabelText('GDC Merchant ID (MID)'), { target: { value: 'MID-PENDING' } });
+    fireEvent.change(screen.getByLabelText('GDC Account Number'), { target: { value: '000333' } });
+    await clickAndFlush(screen.getByRole('button', { name: 'Simpan Mapping (MPM tetap nonaktif)' }));
+
+    await waitFor(() => expect(mocks.rpc).toHaveBeenCalledWith('admin_configure_qris_mpm', {
+      p_application_id: 'application-1',
+      p_gdc_merchant_id: 'MID-PENDING',
+      p_gdc_account_number: '000333',
+    }));
+    expect(mocks.rpc).not.toHaveBeenCalledWith('admin_set_qris_mpm_enabled', expect.anything());
+  });
 });
