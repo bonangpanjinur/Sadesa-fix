@@ -5,44 +5,56 @@
 **Frontend:** Vite + React + TypeScript, deployment melalui Vercel  
 **Backend:** Supabase Auth, Database, RPC, dan Edge Functions  
 **Provider:** GDC/Neo QRIS MPM Dynamic  
-**Status dokumen:** Diperbarui setelah audit commit `5d406c4b` pada 2026-11-20; source sudah diperbaiki dan di-push ke `main`, tetapi migration/deployment staging-production belum dilakukan
+**Status dokumen:** Diperbarui setelah audit commit `69d03525` pada 2026-11-20; source dan validasi repository sudah selesai, tetapi deployment serta pengujian provider nyata belum dilakukan.
 
 
 ---
 
-## Status implementasi aktual
+## Status implementasi aktual dan persentase
 
-Bagian ini adalah pembaruan status terhadap repository pada commit `5d406c4b` (`fix: harden per-merchant GDC QRIS checkout`). Status **selesai** berarti perubahan source sudah dibuat, diuji pada level repository, dan sudah di-push ke branch `main`. Status **belum dilakukan** berarti tidak boleh dianggap tersedia di environment Supabase/Vercel sampai deployment dan pengujian environment dilakukan.
+Bagian ini adalah status terbaru terhadap repository pada commit `69d03525` (`fix: close remaining checkout and contract gaps`). Persentase dihitung dari **24 item pekerjaan yang dinilai satu per satu** di bawah ini: 12 item selesai dan 12 item belum selesai. Item yang sudah lulus pada level source/repository tidak dianggap sebagai deployment atau acceptance end-to-end.
 
-### Sudah dilakukan di source dan repository
+### Ringkasan progres
 
-- Checkout user login satu toko sudah memiliki pilihan **QRIS Dinamis GDC** jika capability merchant aktif; guest checkout dan cart multi-merchant tidak menampilkan atau menggunakan QRIS Dinamis.
-- Checkout tetap memakai authoritative checkout RPC. Browser hanya meneruskan `order_id` ke Edge Function setelah order dibuat; nominal, MID, account number, dan reference provider tetap dipilih backend.
-- Capability QRIS pada checkout diperiksa melalui RPC boolean `merchant_has_active_gdc_qris`, sehingga MID dan account number tidak dibaca atau dibundel ke frontend.
-- `gdc-qris-mpm` memilih mapping menggunakan `orders.merchant_id`, menyimpan merchant yang sama pada payment record, dan menolak mismatch merchant antara order dan payment.
-- Client QRIS memvalidasi bentuk response secara eksplisit untuk status, nominal, currency, QR content, reference, dan paid timestamp.
-- `PaymentConfirmationPage` sudah menggunakan marker `QRIS_MPM_GDC`, merender QR dinamis dengan `react-qr-code`, menyembunyikan upload bukti manual untuk provider dinamis, dan melakukan polling status terkontrol hingga `PAID` atau `FAILED`.
-- Migration hardening baru sudah ditambahkan pada `supabase/bootstrap/140_20261120210000_gdc_qris_mpm_merchant_mapping_hardening.sql`, termasuk satu mapping aktif per merchant, validasi mapping aktif, RPC capability, dan RLS payment service-role-only.
-- Perubahan sudah di-commit dan di-push ke `bonangpanjinur/Sadesa-fix:main`.
+| Status | Jumlah item | Persentase | Arti |
+|---|---:|---:|---|
+| **Sudah selesai** | 12 dari 24 | **50%** | Sudah diimplementasikan atau divalidasi di source/repository dan sudah di-push ke `main`. |
+| **Belum selesai** | 12 dari 24 | **50%** | Belum dilakukan, belum tersedia di environment, atau belum dibuktikan melalui provider nyata/end-to-end. |
+| **Total** | **24 item** | **100%** | Perhitungan transparan berdasarkan daftar di bawah. |
 
-### Sudah divalidasi, tetapi belum merupakan acceptance end-to-end
+### Sudah selesai — 12 item (50%)
 
-- Test QRIS API, checkout scenario, dan payment confirmation: **11 test lulus**.
-- Frontend production build: **lulus**.
-- Lint: **lulus tanpa error**; masih ada 7 warning lama yang tidak terkait langsung dengan QRIS.
-- Validasi migration dan bootstrap: **lulus**.
-- Test suite penuh: **847 lulus**, 20 skipped, dan 5 gagal pada kontrak/test lama yang tidak terkait langsung dengan perubahan QRIS. Kegagalan tersebut tetap perlu dibereskan sebelum menjadikan seluruh suite sebagai gate production.
+1. Checkout user login satu toko menampilkan QRIS Dinamis GDC hanya jika capability merchant aktif.
+2. Guest checkout dan cart multi-merchant tidak menampilkan atau menggunakan QRIS Dinamis.
+3. Checkout memakai authoritative checkout RPC; browser tidak menentukan nominal, MID, account number, atau reference provider.
+4. Capability QRIS memakai RPC boolean `merchant_has_active_gdc_qris` tanpa membocorkan MID/account number ke frontend.
+5. Edge Function memilih mapping memakai `orders.merchant_id`, menyimpan merchant yang sama pada payment record, dan menolak mismatch merchant/payment.
+6. Client QRIS memvalidasi status, nominal, currency, QR content, reference, dan paid timestamp dari response provider.
+7. Halaman konfirmasi memakai marker `QRIS_MPM_GDC`, merender QR dinamis, menyembunyikan upload bukti manual untuk provider dinamis, dan melakukan polling hingga `PAID` atau `FAILED`.
+8. Guest payment dinormalisasi menjadi `TRANSFER` secara eksplisit sehingga state payment online tidak dapat dipakai oleh guest.
+9. Migration hardening mapping merchant sudah dibuat, termasuk satu mapping aktif per merchant, validasi mapping, RPC capability, dan RLS payment service-role-only.
+10. Seluruh suite test sudah lulus: **852 test lulus, 20 skipped, 0 gagal**.
+11. Production build, validasi migration, dan validasi bootstrap sudah lulus.
+12. Lint lulus tanpa error; empat warning yang tersisa hanya berasal dari artifact lama `artifacts/mockup-sandbox` dan bukan source QRIS yang diperbaiki.
 
-### Belum dilakukan
+### Belum selesai — 12 item (50%)
 
-- Migration database belum diterapkan ke Supabase staging maupun production.
-- Edge Function `gdc-qris-mpm` belum di-deploy ke staging/production pada pekerjaan ini.
-- Secret GDC belum diverifikasi atau dipasang pada Supabase Edge Function environment.
-- Belum dilakukan sandbox end-to-end dengan minimal dua toko dan dua mapping MID/account GDC yang berbeda.
-- Belum ada bukti request nyata ke endpoint generate/query GDC, verifikasi nominal provider, dan settlement nyata pada environment staging.
-- Belum ada deployment preview/staging frontend ke Vercel atau pemisahan secret sandbox-production.
-- Webhook GDC tetap belum menjadi jalur settlement utama; signature callback belum dikonfirmasi dan belum diaktifkan.
-- Refund otomatis, guest QRIS Dinamis, checkout multi-merchant satu QR, dan sinkronisasi/scraping dashboard GDC belum termasuk implementasi ini.
+1. Migration database belum diterapkan ke Supabase staging.
+2. Migration database belum diterapkan ke Supabase production.
+3. Edge Function `gdc-qris-mpm` belum di-deploy ke staging/production.
+4. Secret GDC belum diverifikasi atau dipasang pada environment Supabase Edge Function.
+5. Belum ada sandbox end-to-end dengan minimal dua toko dan dua mapping MID/account GDC yang berbeda.
+6. Belum ada bukti request nyata ke endpoint generate GDC pada environment staging.
+7. Belum ada bukti query status, kecocokan nominal provider, dan settlement nyata pada environment staging.
+8. Belum ada deployment preview/staging frontend ke Vercel dengan pemisahan secret sandbox-production.
+9. Webhook GDC belum dikonfirmasi signature-nya dan belum diaktifkan sebagai jalur settlement utama.
+10. Refund otomatis melalui GDC belum diimplementasikan.
+11. Guest QRIS Dinamis dan checkout multi-merchant satu QR belum diimplementasikan.
+12. Sinkronisasi atau scraping dashboard GDC belum diimplementasikan.
+
+### Catatan status
+
+Item “sudah selesai” di atas berarti source code dan pemeriksaan repository sudah dilakukan, bukan berarti fitur sudah aktif di production. Item “belum selesai” tetap menjadi pekerjaan lanjutan sebelum menyatakan integrasi siap production. Perubahan source dan dokumen sudah di-commit ke `bonangpanjinur/Sadesa-fix:main`.
 
 ### Keputusan keamanan saat ini
 
