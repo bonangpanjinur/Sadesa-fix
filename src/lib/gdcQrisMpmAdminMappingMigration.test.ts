@@ -14,6 +14,10 @@ const pendingActivationMigration = readFileSync(
   resolve(process.cwd(), 'supabase/bootstrap/142_20261120230000_gdc_mapping_before_qris_activation.sql'),
   'utf8',
 );
+const manualApprovalActivationMigration = readFileSync(
+  resolve(process.cwd(), 'supabase/bootstrap/143_20261121001000_manual_gdc_approval_activation.sql'),
+  'utf8',
+);
 const edgeFunction = readFileSync(
   resolve(process.cwd(), 'supabase/functions/gdc-qris-mpm/index.ts'),
   'utf8',
@@ -54,5 +58,17 @@ describe('GDC QRIS admin mapping migration contract', () => {
     expect(pendingActivationMigration).toContain("v_application.status NOT IN ('ACTIVE', 'ISSUED_PENDING_ACTIVATION')");
     expect(pendingActivationMigration).toContain('gdc_mpm_enabled = false');
     expect(pendingActivationMigration).toContain("'status', v_application.status");
+  });
+
+  it('activates dynamic MPM using manually approved GDC identity without static QR or provider API validation', () => {
+    expect(manualApprovalActivationMigration).toContain('generated dynamically per order');
+    expect(manualApprovalActivationMigration).toContain('public.is_admin()');
+    expect(manualApprovalActivationMigration).toContain('v_application.gdc_merchant_id');
+    expect(manualApprovalActivationMigration).toContain('v_application.gdc_account_number');
+    expect(manualApprovalActivationMigration).not.toMatch(/tervalidasi provider sebelum aktivasi/i);
+    expect(manualApprovalActivationMigration).toContain('gdc_mpm_enabled = true');
+    expect(manualApprovalActivationMigration).not.toContain('v_application.qris_reference');
+    expect(manualApprovalActivationMigration).not.toContain('v_application.qris_asset_key');
+    expect(manualApprovalActivationMigration).toContain("'APPROVED_PENDING_ISSUANCE' THEN 'ISSUED_PENDING_ACTIVATION'");
   });
 });

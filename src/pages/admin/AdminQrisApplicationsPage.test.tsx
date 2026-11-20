@@ -84,22 +84,42 @@ describe('Admin QRIS GDC mapping controls', () => {
     vi.clearAllMocks();
   });
 
-  it('shows and submits MID/account during issuance so the required mapping can be saved', async () => {
+  it('groups unresolved internal stages under the four agreed display statuses', async () => {
+    arrange(application({ status: 'SUBMITTED' }));
+
+    expect((await screen.findAllByText('Menunggu Aktivasi Admin')).length).toBeGreaterThan(0);
+    expect(screen.getByRole('option', { name: 'Perlu Perbaikan' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Ditolak' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'QRIS Aktif' })).toBeInTheDocument();
+    expect(screen.getAllByRole('option')).toHaveLength(5);
+  });
+
+  it('saves the manually GDC-approved MID/account before admin activation', async () => {
     arrange(application());
     await selectApplication();
 
-    fireEvent.change(await screen.findByLabelText('Nomor referensi QRIS'), { target: { value: 'REF-001' } });
     fireEvent.change(screen.getByLabelText('GDC Merchant ID (MID)'), { target: { value: 'MID-001' } });
     fireEvent.change(screen.getByLabelText('GDC Account Number'), { target: { value: '000123456789' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Pilih QRIS uji' }));
-    await clickAndFlush(screen.getByRole('button', { name: 'Simpan QRIS — Menunggu Aktivasi' }));
+    await clickAndFlush(screen.getByRole('button', { name: 'Simpan Data GDC — Menunggu Aktivasi Admin' }));
 
-    await waitFor(() => expect(mocks.rpc).toHaveBeenCalledWith('admin_issue_qris_mpm', {
+    await waitFor(() => expect(mocks.rpc).toHaveBeenCalledWith('admin_configure_qris_mpm', {
       p_application_id: 'application-1',
-      p_qris_reference: 'REF-001',
-      p_qris_asset_key: 'qris/merchant-1.png',
       p_gdc_merchant_id: 'MID-001',
       p_gdc_account_number: '000123456789',
+    }));
+  });
+
+  it('activates dynamic MPM with the admin RPC after the GDC mapping is saved', async () => {
+    arrange(application({
+      status: 'ISSUED_PENDING_ACTIVATION',
+      gdc_merchant_id: 'MID-001',
+      gdc_account_number: '000123456789',
+    }));
+    await selectApplication();
+    await clickAndFlush(await screen.findByRole('button', { name: 'Aktifkan QRIS Dinamis' }));
+
+    await waitFor(() => expect(mocks.rpc).toHaveBeenCalledWith('admin_activate_qris', {
+      p_application_id: 'application-1',
     }));
   });
 

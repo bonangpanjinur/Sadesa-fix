@@ -1,8 +1,8 @@
 {
   "idempotent": true,
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 350,
-  "bundle_count": 144,
+  "migration_count": 351,
+  "bundle_count": 145,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -1361,6 +1361,14 @@
       ],
       "sha256": "fa3f06cd7e77ea1315fb13a7c62863d78ed140ec2647d3495db484d1a98df605",
       "bytes": 1859
+    },
+    {
+      "file": "143_20261121001000_manual_gdc_approval_activation.sql",
+      "source_files": [
+        "143_20261121001000_manual_gdc_approval_activation.sql"
+      ],
+      "sha256": "8bb554629924e9358cd44186eea6c48453869de172894327b8de783b452cb259",
+      "bytes": 3618
     }
   ]
 }

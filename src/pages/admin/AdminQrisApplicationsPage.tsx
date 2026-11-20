@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { ImageUpload } from '@/components/ui/ImageUpload';
 
 type AppStatus = 'SUBMITTED' | 'IN_REVIEW' | 'NEEDS_CORRECTION' | 'REJECTED' | 'APPROVED_PENDING_ISSUANCE' | 'ISSUED_PENDING_ACTIVATION' | 'ACTIVE';
 type QrisApplication = {
@@ -50,6 +49,28 @@ const labels: Record<AppStatus, string> = {
   ISSUED_PENDING_ACTIVATION: 'Menunggu Aktivasi',
   ACTIVE: 'QRIS Aktif',
 };
+type DisplayStatus = 'WAITING_ADMIN_ACTIVATION' | 'NEEDS_CORRECTION' | 'REJECTED' | 'ACTIVE';
+const displayLabels: Record<DisplayStatus, string> = {
+  WAITING_ADMIN_ACTIVATION: 'Menunggu Aktivasi Admin',
+  NEEDS_CORRECTION: 'Perlu Perbaikan',
+  REJECTED: 'Ditolak',
+  ACTIVE: 'QRIS Aktif',
+};
+const displayStatusFor = (status: AppStatus): DisplayStatus => {
+  switch (status) {
+    case 'SUBMITTED':
+    case 'IN_REVIEW':
+    case 'APPROVED_PENDING_ISSUANCE':
+    case 'ISSUED_PENDING_ACTIVATION':
+      return 'WAITING_ADMIN_ACTIVATION';
+    case 'NEEDS_CORRECTION':
+      return 'NEEDS_CORRECTION';
+    case 'REJECTED':
+      return 'REJECTED';
+    case 'ACTIVE':
+      return 'ACTIVE';
+  }
+};
 const docLabels: Record<string, string> = {
   OWNER_ID: 'Foto KTP Pemilik',
   OWNER_SELFIE: 'Foto Selfie Pemilik',
@@ -63,15 +84,13 @@ export default function AdminQrisApplicationsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [documentUrls, setDocumentUrls] = useState<Record<string, string>>({});
   const [correctionNote, setCorrectionNote] = useState('');
-  const [qrisReference, setQrisReference] = useState('');
-  const [qrisImageUrl, setQrisImageUrl] = useState<string | null>(null);
   const [gdcMerchantId, setGdcMerchantId] = useState('');
   const [gdcAccountNumber, setGdcAccountNumber] = useState('');
   const [filter, setFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const selected = applications.find((item) => item.id === selectedId) || null;
-  const pendingCount = useMemo(() => applications.filter((item) => ['SUBMITTED', 'IN_REVIEW'].includes(item.status)).length, [applications]);
+  const pendingCount = useMemo(() => applications.filter((item) => displayStatusFor(item.status) === 'WAITING_ADMIN_ACTIVATION').length, [applications]);
 
   const load = async () => {
     setLoading(true);
@@ -100,10 +119,8 @@ export default function AdminQrisApplicationsPage() {
         return [type, data?.signedUrl || ''] as const;
       }));
       if (active) setDocumentUrls(Object.fromEntries(pairs));
-      setQrisReference(selected.qris_reference || '');
       setGdcMerchantId(selected.gdc_merchant_id || '');
       setGdcAccountNumber(selected.gdc_account_number || '');
-      setQrisImageUrl(null);
       setCorrectionNote('');
     };
     void loadDocuments();
@@ -132,29 +149,6 @@ export default function AdminQrisApplicationsPage() {
     }
   };
 
-  const issue = async (application: QrisApplication) => {
-    if (!user || !qrisReference.trim() || !qrisImageUrl || !gdcMerchantId.trim() || !gdcAccountNumber.trim()) {
-      return toast.error('Isi referensi, unggah QRIS, dan masukkan MID serta Account Number GDC.');
-    }
-    setSaving(true);
-    try {
-      const { error } = await db.rpc('admin_issue_qris_mpm', {
-        p_application_id: application.id,
-        p_qris_reference: qrisReference.trim(),
-        p_qris_asset_key: qrisImageUrl,
-        p_gdc_merchant_id: gdcMerchantId.trim(),
-        p_gdc_account_number: gdcAccountNumber.trim(),
-      });
-      if (error) throw error;
-      toast.success('QRIS Sadesa dicatat dan menunggu aktivasi akhir. QRIS MPM Dinamis masih nonaktif sampai admin mengaktifkannya.');
-      await load();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Penerbitan QRIS gagal disimpan.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const saveGdcMpmIdentity = async (application: QrisApplication) => {
     if (!user || !gdcMerchantId.trim() || !gdcAccountNumber.trim()) {
       return toast.error('MID dan Account Number GDC wajib diisi.');
@@ -167,7 +161,7 @@ export default function AdminQrisApplicationsPage() {
         p_gdc_account_number: gdcAccountNumber.trim(),
       });
       if (error) throw error;
-      toast.success('Mapping tersimpan. QRIS MPM Dinamis tetap nonaktif sampai diaktifkan secara terpisah.');
+      toast.success('MID dan Account Number GDC tersimpan. Pengajuan menunggu aktivasi admin untuk QRIS dinamis.');
       await load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Mapping GDC gagal disimpan.');
@@ -179,10 +173,10 @@ export default function AdminQrisApplicationsPage() {
   const setGdcMpmEnabled = async (application: QrisApplication, enabled: boolean) => {
     if (!user) return;
     if (enabled && (!application.gdc_merchant_id?.trim() || !application.gdc_account_number?.trim())) {
-      toast.error('Simpan dan verifikasi MID serta Account Number GDC sebelum mengaktifkan.');
+      toast.error('Simpan MID dan Account Number GDC yang sudah disetujui provider sebelum mengaktifkan.');
       return;
     }
-    if (enabled && !window.confirm(`Pastikan MID dan Account Number GDC yang tersimpan sudah dicocokkan dengan toko ${application.merchant?.name || 'ini'}. Aktifkan QRIS MPM Dinamis?`)) return;
+    if (enabled && !window.confirm(`Pastikan MID dan Account Number GDC yang disetujui provider sudah cocok dengan toko ${application.merchant?.name || 'ini'}. Aktifkan QRIS MPM Dinamis?`)) return;
     setSaving(true);
     try {
       const { error } = await db.rpc('admin_set_qris_mpm_enabled', {
@@ -201,11 +195,15 @@ export default function AdminQrisApplicationsPage() {
 
   const activate = async (application: QrisApplication) => {
     if (!user) return;
+    if (!application.gdc_merchant_id?.trim() || !application.gdc_account_number?.trim()) {
+      toast.error('Simpan MID dan Account Number GDC yang telah disetujui sebelum mengaktifkan QRIS dinamis.');
+      return;
+    }
     setSaving(true);
     try {
       const { error } = await db.rpc('admin_activate_qris', { p_application_id: application.id });
       if (error) throw error;
-      toast.success('QRIS Sadesa aktif untuk merchant. QRIS MPM Dinamis dapat diaktifkan setelah mapping diverifikasi.');
+      toast.success('QRIS Sadesa aktif untuk merchant. QRIS MPM Dinamis dapat diaktifkan secara terpisah oleh admin.');
       await load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Aktivasi QRIS gagal.');
@@ -214,14 +212,14 @@ export default function AdminQrisApplicationsPage() {
     }
   };
 
-  const shown = applications.filter((item) => filter === 'ALL' || item.status === filter);
+  const shown = applications.filter((item) => filter === 'ALL' || displayStatusFor(item.status) === filter);
   const hasGdcIdentity = Boolean(selected?.gdc_merchant_id?.trim() && selected.gdc_account_number?.trim());
   const mappingMatchesSelected = Boolean(selected
     && gdcMerchantId.trim() === selected.gdc_merchant_id?.trim()
     && gdcAccountNumber.trim() === selected.gdc_account_number?.trim());
 
   return (
-    <AdminLayout title="Pengajuan QRIS Sadesa" subtitle="Verifikasi data, daftarkan merchant secara manual ke Neo/GDC, unggah QRIS statis per merchant, lalu aktifkan mapping QRIS MPM secara terpisah setelah diverifikasi.">
+    <AdminLayout title="Pengajuan QRIS Sadesa" subtitle="Daftarkan merchant secara manual ke GDC, lalu aktifkan QRIS setelah data yang dimasukkan admin disetujui GDC.">
       <div className="grid gap-4 xl:grid-cols-[minmax(300px,0.9fr)_minmax(0,1.5fr)]">
         <Card className="h-fit">
           <CardHeader>
@@ -238,7 +236,7 @@ export default function AdminQrisApplicationsPage() {
           <CardContent className="space-y-3">
             <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={filter} onChange={(event) => setFilter(event.target.value)}>
               <option value="ALL">Semua status</option>
-              {Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              {Object.entries(displayLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
             {loading ? (
               <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Memuat pengajuan…</div>
@@ -248,7 +246,7 @@ export default function AdminQrisApplicationsPage() {
               <button key={application.id} onClick={() => setSelectedId(application.id)} className={`w-full rounded-lg border p-3 text-left transition-colors ${selectedId === application.id ? 'border-primary bg-primary/5' : 'hover:bg-muted/60'}`}>
                 <div className="flex items-start justify-between gap-2">
                   <span className="font-medium">{application.merchant?.name || 'Merchant'}</span>
-                  <Badge variant={application.status === 'ACTIVE' ? 'default' : 'secondary'}>{labels[application.status]}</Badge>
+                  <Badge variant={application.status === 'ACTIVE' ? 'default' : 'secondary'}>{displayLabels[displayStatusFor(application.status)]}</Badge>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">{application.application_number} · {new Date(application.submitted_at).toLocaleDateString('id-ID')}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{application.business_criteria_code} · {application.qris_merchant_name}</p>
@@ -306,12 +304,8 @@ export default function AdminQrisApplicationsPage() {
 
               {selected.status === 'APPROVED_PENDING_ISSUANCE' && (
                 <div className="space-y-3 rounded-lg border border-primary/20 p-4">
-                  <h3 className="font-semibold">Pendaftaran Neo/GDC &amp; unggah QRIS statis</h3>
-                  <p className="text-sm text-muted-foreground">Cocokkan toko dan data merchant di dashboard GDC sebelum menyimpan mapping. Data GDC hanya dipakai backend. QRIS MPM Dinamis belum aktif sampai admin mengaktifkannya setelah review.</p>
-                  <div className="space-y-2">
-                    <Label htmlFor="qris-reference">Nomor referensi QRIS</Label>
-                    <Input id="qris-reference" value={qrisReference} onChange={(event) => setQrisReference(event.target.value)} maxLength={200} />
-                  </div>
+                  <h3 className="font-semibold">Mapping merchant GDC untuk QRIS MPM</h3>
+                  <p className="text-sm text-muted-foreground">Daftarkan merchant secara manual di dashboard GDC. Masukkan MID dan Account Number yang sudah disetujui GDC. QR pembayaran akan dibuat dinamis per pesanan melalui GDC; Sadesa tidak memakai gambar QR statis atau validasi otomatis provider.</p>
                   <div className="space-y-2">
                     <Label htmlFor="gdc-merchant-id">GDC Merchant ID (MID)</Label>
                     <Input id="gdc-merchant-id" value={gdcMerchantId} onChange={(event) => setGdcMerchantId(event.target.value)} maxLength={100} autoComplete="off" />
@@ -320,19 +314,15 @@ export default function AdminQrisApplicationsPage() {
                     <Label htmlFor="gdc-account-number">GDC Account Number</Label>
                     <Input id="gdc-account-number" value={gdcAccountNumber} onChange={(event) => setGdcAccountNumber(event.target.value)} maxLength={100} autoComplete="off" />
                   </div>
-                  <div className="space-y-2">
-                    <Label>QRIS statis untuk merchant ini</Label>
-                    <ImageUpload bucket="merchant-images" path={`qris/${selected.merchant_id}`} value={qrisImageUrl} onChange={setQrisImageUrl} placeholder="Unggah QRIS statis merchant" />
-                  </div>
-                  <Button disabled={saving || !qrisReference.trim() || !qrisImageUrl || !gdcMerchantId.trim() || !gdcAccountNumber.trim()} onClick={() => void issue(selected)}>Simpan QRIS — Menunggu Aktivasi</Button>
+                  <Button disabled={saving || !gdcMerchantId.trim() || !gdcAccountNumber.trim()} onClick={() => void saveGdcMpmIdentity(selected)}>Simpan Data GDC — Menunggu Aktivasi Admin</Button>
                 </div>
               )}
 
               {selected.status === 'ISSUED_PENDING_ACTIVATION' && (
                 <div className="space-y-4 rounded-lg border p-4">
                   <div>
-                    <h3 className="font-semibold">Aktivasi QRIS &amp; mapping GDC</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">Referensi: <strong>{selected.qris_reference || '—'}</strong>. Cocokkan MID dan Account Number dengan toko ini. Menyimpan mapping tidak mengaktifkan QRIS MPM Dinamis; aktivasi MPM tetap menjadi langkah terpisah setelah QRIS Sadesa aktif.</p>
+                    <h3 className="font-semibold">Aktivasi QRIS MPM Dinamis</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">MID dan Account Number harus sudah didaftarkan dan disetujui di GDC. Setelah admin mengaktifkan, Edge Function dapat memakai mapping ini untuk request <code>qr-mpm-generate</code>.</p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="pending-gdc-merchant-id">GDC Merchant ID (MID)</Label>
@@ -344,7 +334,7 @@ export default function AdminQrisApplicationsPage() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button variant="outline" disabled={saving || !gdcMerchantId.trim() || !gdcAccountNumber.trim()} onClick={() => void saveGdcMpmIdentity(selected)}>Simpan Mapping (MPM tetap nonaktif)</Button>
-                    <Button disabled={saving} onClick={() => void activate(selected)}><ShieldCheck className="mr-2 h-4 w-4" />Aktifkan QRIS Sadesa</Button>
+                    <Button disabled={saving || !hasGdcIdentity || !mappingMatchesSelected} onClick={() => void activate(selected)}><ShieldCheck className="mr-2 h-4 w-4" />Aktifkan QRIS Dinamis</Button>
                   </div>
                 </div>
               )}
@@ -353,7 +343,7 @@ export default function AdminQrisApplicationsPage() {
                 <div className="space-y-4 rounded-lg border border-emerald-300 p-4">
                   <div>
                     <h3 className="font-semibold">QRIS MPM Dinamis GDC</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">Status: <strong>{selected.gdc_mpm_enabled ? 'Aktif' : 'Nonaktif'}</strong>. Mengubah mapping akan menonaktifkan QRIS Dinamis hingga diverifikasi dan diaktifkan ulang. Perubahan status dan mapping dicatat tanpa menyalin nilai MID/account ke log.</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Status: <strong>{selected.gdc_mpm_enabled ? 'Aktif' : 'Nonaktif'}</strong>. Masukkan hanya mapping yang sudah disetujui GDC secara manual. Mengubah mapping menonaktifkan QRIS Dinamis sampai admin mengaktifkannya kembali. Perubahan status dan mapping dicatat tanpa menyalin nilai MID/account ke log.</p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="active-gdc-merchant-id">GDC Merchant ID (MID)</Label>
