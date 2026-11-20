@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const API_BASE = (Deno.env.get("GDC_API_BASE_URL") || "https://neo-sandbox-api.gdc.co.id/snap").replace(/\/$/, "");
+const GDC_SANDBOX_HOST = "neo-sandbox-api.gdc.co.id";
 const API_PATHS = {
   token: "/v1.0/access-token/b2b",
   generate: "/v1.0/qr/qr-mpm-generate",
@@ -197,8 +198,56 @@ async function processRequest(req: Request): Promise<Response> {
   const { data: authData, error: authError } = await userClient.auth.getUser();
   if (authError || !authData.user) return json({ error: 'Unauthorized' }, 401, req);
   const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
-  const input = await req.json().catch(() => null) as { action?: string; order_id?: string } | null;
-  if (!input || !['create', 'status'].includes(input.action || '') || !input.order_id || !/^[0-9a-f-]{36}$/i.test(input.order_id)) {
+  const input = await req.json().catch(() => null) as { action?: string; order_id?: string; application_id?: string } | null;
+  if (!input || !['create', 'status', 'admin_preview'].includes(input.action || '')) {
+    return json({ error: 'Permintaan pembayaran tidak valid.' }, 400, req);
+  }
+  if (input.action === 'admin_preview') {
+    if (!input.application_id || !/^[0-9a-f-]{36}$/i.test(input.application_id)) {
+      return json({ error: 'Pengajuan QRIS tidak valid.' }, 400, req);
+    }
+    if (new URL(API_BASE).hostname !== GDC_SANDBOX_HOST) {
+      return json({ error: 'Preview QRIS hanya diizinkan pada endpoint sandbox GDC.' }, 409, req);
+    }
+    const { data: isAdmin, error: adminCheckError } = await userClient.rpc('is_admin');
+    if (adminCheckError || isAdmin !== true) return json({ error: 'Akses admin diperlukan untuk uji QRIS.' }, 403, req);
+    const { data: application, error: applicationError } = await admin.from('qris_applications')
+      .select('gdc_merchant_id, gdc_account_number')
+      .eq('id', input.application_id).maybeSingle();
+    if (applicationError || !application?.gdc_merchant_id?.trim() || !application?.gdc_account_number?.trim()) {
+      return json({ error: 'Mapping MID dan Account Number GDC harus disimpan terlebih dahulu.' }, 409, req);
+    }
+    try {
+      const credentials = getCredentials();
+      const amount = 1000;
+      const partnerReferenceNo = crypto.randomUUID();
+      const externalId = crypto.randomUUID();
+      const generated = await gdcPost(credentials, API_PATHS.generate, {
+        partnerReferenceNo,
+        amount: { value: moneyValue(amount), currency: 'IDR' },
+        merchantId: String(application.gdc_merchant_id),
+        additionalInfo: { accountNumber: String(application.gdc_account_number) },
+      }, externalId);
+      if (generated.responseCode !== '2004700'
+        || generated.partnerReferenceNo !== partnerReferenceNo
+        || !generated.referenceNo
+        || !generated.qrContent
+        || generated.qrContent.length > 4000) {
+        throw new Error('Provider tidak mengembalikan QR uji yang lengkap.');
+      }
+      return json({
+        status: 'PREVIEW',
+        amount,
+        currency: 'IDR',
+        qr_content: generated.qrContent,
+        reference_no: generated.referenceNo,
+      }, 200, req);
+    } catch (error) {
+      console.error('GDC QR MPM admin preview failed', error instanceof Error ? error.message : 'unknown');
+      return json({ error: error instanceof Error ? error.message : 'QR uji GDC gagal dibuat.' }, 502, req);
+    }
+  }
+  if (!input.order_id || !/^[0-9a-f-]{36}$/i.test(input.order_id)) {
     return json({ error: 'Permintaan pembayaran tidak valid.' }, 400, req);
   }
   const credentials = getCredentials();

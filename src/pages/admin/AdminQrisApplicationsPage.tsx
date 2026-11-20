@@ -10,6 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { QRCodeSVG } from 'qrcode.react';
+import { previewGdcQrisMpm, type GdcQrisMpmPreview } from '@/lib/gdcQrisMpmApi';
 
 type AppStatus = 'SUBMITTED' | 'IN_REVIEW' | 'NEEDS_CORRECTION' | 'REJECTED' | 'APPROVED_PENDING_ISSUANCE' | 'ISSUED_PENDING_ACTIVATION' | 'ACTIVE';
 type QrisApplication = {
@@ -89,6 +91,8 @@ export default function AdminQrisApplicationsPage() {
   const [filter, setFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const [qrisPreview, setQrisPreview] = useState<{ applicationId: string; payment: GdcQrisMpmPreview } | null>(null);
   const selected = applications.find((item) => item.id === selectedId) || null;
   const pendingCount = useMemo(() => applications.filter((item) => displayStatusFor(item.status) === 'WAITING_ADMIN_ACTIVATION').length, [applications]);
 
@@ -122,6 +126,7 @@ export default function AdminQrisApplicationsPage() {
       setGdcMerchantId(selected.gdc_merchant_id || '');
       setGdcAccountNumber(selected.gdc_account_number || '');
       setCorrectionNote('');
+      setQrisPreview(null);
     };
     void loadDocuments();
     return () => { active = false; };
@@ -167,6 +172,24 @@ export default function AdminQrisApplicationsPage() {
       toast.error(error instanceof Error ? error.message : 'Mapping GDC gagal disimpan.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const previewGdcMpm = async (application: QrisApplication) => {
+    if (!application.gdc_merchant_id?.trim() || !application.gdc_account_number?.trim()) {
+      toast.error('Simpan MID dan Account Number GDC terlebih dahulu sebelum uji QR.');
+      return;
+    }
+    setPreviewing(true);
+    setQrisPreview(null);
+    try {
+      const payment = await previewGdcQrisMpm(application.id);
+      setQrisPreview({ applicationId: application.id, payment });
+      toast.success('QR uji GDC sandbox berhasil dibuat. QR ini bukan untuk pembayaran produksi.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Preview QRIS dinamis gagal dibuat.');
+    } finally {
+      setPreviewing(false);
     }
   };
 
@@ -326,11 +349,11 @@ export default function AdminQrisApplicationsPage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="pending-gdc-merchant-id">GDC Merchant ID (MID)</Label>
-                    <Input id="pending-gdc-merchant-id" value={gdcMerchantId} onChange={(event) => setGdcMerchantId(event.target.value)} maxLength={100} autoComplete="off" />
+                    <Input id="pending-gdc-merchant-id" value={gdcMerchantId} onChange={(event) => { setGdcMerchantId(event.target.value); setQrisPreview(null); }} maxLength={100} autoComplete="off" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="pending-gdc-account-number">GDC Account Number</Label>
-                    <Input id="pending-gdc-account-number" value={gdcAccountNumber} onChange={(event) => setGdcAccountNumber(event.target.value)} maxLength={100} autoComplete="off" />
+                    <Input id="pending-gdc-account-number" value={gdcAccountNumber} onChange={(event) => { setGdcAccountNumber(event.target.value); setQrisPreview(null); }} maxLength={100} autoComplete="off" />
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button variant="outline" disabled={saving || !gdcMerchantId.trim() || !gdcAccountNumber.trim()} onClick={() => void saveGdcMpmIdentity(selected)}>Simpan Mapping (MPM tetap nonaktif)</Button>
@@ -347,11 +370,11 @@ export default function AdminQrisApplicationsPage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="active-gdc-merchant-id">GDC Merchant ID (MID)</Label>
-                    <Input id="active-gdc-merchant-id" value={gdcMerchantId} onChange={(event) => setGdcMerchantId(event.target.value)} maxLength={100} autoComplete="off" />
+                    <Input id="active-gdc-merchant-id" value={gdcMerchantId} onChange={(event) => { setGdcMerchantId(event.target.value); setQrisPreview(null); }} maxLength={100} autoComplete="off" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="active-gdc-account-number">GDC Account Number</Label>
-                    <Input id="active-gdc-account-number" value={gdcAccountNumber} onChange={(event) => setGdcAccountNumber(event.target.value)} maxLength={100} autoComplete="off" />
+                    <Input id="active-gdc-account-number" value={gdcAccountNumber} onChange={(event) => { setGdcAccountNumber(event.target.value); setQrisPreview(null); }} maxLength={100} autoComplete="off" />
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button variant="outline" disabled={saving || !gdcMerchantId.trim() || !gdcAccountNumber.trim()} onClick={() => void saveGdcMpmIdentity(selected)}>Simpan Mapping (Dinamis Dinonaktifkan)</Button>
@@ -359,6 +382,29 @@ export default function AdminQrisApplicationsPage() {
                       {selected.gdc_mpm_enabled ? 'Nonaktifkan QRIS Dinamis' : 'Aktifkan QRIS Dinamis'}
                     </Button>
                   </div>
+                </div>
+              )}
+
+              {hasGdcIdentity && (
+                <div className="space-y-4 rounded-lg border border-sky-300 bg-sky-50/40 p-4">
+                  <div>
+                    <h3 className="font-semibold">Preview QRIS Dinamis GDC — Sandbox</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Membuat QR uji Rp1.000 langsung melalui <code>qr-mpm-generate</code> sandbox. Tidak membuat order Sadesa atau mengubah status aktivasi. QR ini hanya untuk pengujian sandbox dan jangan dibayar.
+                    </p>
+                  </div>
+                  <Button variant="outline" disabled={previewing || saving || !mappingMatchesSelected} onClick={() => void previewGdcMpm(selected)}>
+                    {previewing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <QrCode className="mr-2 h-4 w-4" />}
+                    {previewing ? 'Meminta QR uji…' : 'Buat QR Uji Sandbox · Rp1.000'}
+                  </Button>
+                  {qrisPreview?.applicationId === selected.id && (
+                    <div className="flex flex-col items-center gap-3 rounded-lg border bg-white p-4 text-center">
+                      <Badge variant="destructive">QR UJI SANDBOX — JANGAN DIBAYAR</Badge>
+                      <QRCodeSVG value={qrisPreview.payment.qr_content} size={240} level="M" includeMargin aria-label={`QRIS dinamis sandbox ${selected.merchant?.name || 'merchant'}`} />
+                      <p className="text-sm font-semibold">Rp{qrisPreview.payment.amount.toLocaleString('id-ID')}</p>
+                      <p className="text-xs text-muted-foreground">Referensi sandbox: {qrisPreview.payment.reference_no}</p>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>

@@ -6,6 +6,7 @@ import AdminQrisApplicationsPage from './AdminQrisApplicationsPage';
 const mocks = vi.hoisted(() => ({
   from: vi.fn(),
   rpc: vi.fn(),
+  invoke: vi.fn(),
   createSignedUrl: vi.fn(),
 }));
 
@@ -13,6 +14,7 @@ vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     from: mocks.from,
     rpc: mocks.rpc,
+    functions: { invoke: mocks.invoke },
     storage: { from: vi.fn(() => ({ createSignedUrl: mocks.createSignedUrl })) },
   },
 }));
@@ -60,6 +62,7 @@ function arrange(selectedApplication: ReturnType<typeof application>) {
     update: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ error: null }) })),
   }));
   mocks.rpc.mockResolvedValue({ error: null });
+  mocks.invoke.mockResolvedValue({ data: { status: 'PREVIEW', amount: 1000, currency: 'IDR', qr_content: 'sandbox-emv-payload', reference_no: 'sandbox-ref-1' }, error: null });
   mocks.createSignedUrl.mockResolvedValue({ data: null, error: null });
   render(<AdminQrisApplicationsPage />);
 }
@@ -189,5 +192,22 @@ describe('Admin QRIS GDC mapping controls', () => {
       p_gdc_account_number: '000333',
     }));
     expect(mocks.rpc).not.toHaveBeenCalledWith('admin_set_qris_mpm_enabled', expect.anything());
+  });
+
+  it('previews dynamic QR through the sandbox for a saved mapping before activation', async () => {
+    arrange(application({
+      status: 'ISSUED_PENDING_ACTIVATION',
+      gdc_merchant_id: 'MID-SANDBOX',
+      gdc_account_number: '000123456789',
+    }));
+    await selectApplication();
+    await clickAndFlush(await screen.findByRole('button', { name: 'Buat QR Uji Sandbox · Rp1.000' }));
+
+    await waitFor(() => expect(mocks.invoke).toHaveBeenCalledWith('gdc-qris-mpm', {
+      body: { action: 'admin_preview', application_id: 'application-1' },
+    }));
+    expect(await screen.findByLabelText('QRIS dinamis sandbox Toko Uji')).toBeInTheDocument();
+    expect(screen.getByText('QR UJI SANDBOX — JANGAN DIBAYAR')).toBeInTheDocument();
+    expect(screen.getByText(/Referensi sandbox: sandbox-ref-1/)).toBeInTheDocument();
   });
 });
