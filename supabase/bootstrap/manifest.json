@@ -1,8 +1,8 @@
 {
   "idempotent": true,
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 349,
-  "bundle_count": 143,
+  "migration_count": 350,
+  "bundle_count": 144,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -1353,6 +1353,14 @@
       ],
       "sha256": "b9a884191c40e44de25402837712e2f93b3d8f0fb3d20d6d2e446978c4e4b16d",
       "bytes": 3432
+    },
+    {
+      "file": "142_20261120230000_gdc_mapping_before_qris_activation.sql",
+      "source_files": [
+        "142_20261120230000_gdc_mapping_before_qris_activation.sql"
+      ],
+      "sha256": "fa3f06cd7e77ea1315fb13a7c62863d78ed140ec2647d3495db484d1a98df605",
+      "bytes": 1859
     }
   ]
 }

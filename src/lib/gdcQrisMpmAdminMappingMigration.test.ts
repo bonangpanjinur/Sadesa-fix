@@ -10,6 +10,10 @@ const adminMappingMigration = readFileSync(
   resolve(process.cwd(), 'supabase/bootstrap/141_20261120220000_gdc_qris_admin_mapping_controls.sql'),
   'utf8',
 );
+const pendingActivationMigration = readFileSync(
+  resolve(process.cwd(), 'supabase/bootstrap/142_20261120230000_gdc_mapping_before_qris_activation.sql'),
+  'utf8',
+);
 const edgeFunction = readFileSync(
   resolve(process.cwd(), 'supabase/functions/gdc-qris-mpm/index.ts'),
   'utf8',
@@ -44,5 +48,11 @@ describe('GDC QRIS admin mapping migration contract', () => {
 
   it('uses only an explicitly enabled merchant mapping for GDC checkout', () => {
     expect(edgeFunction).toContain(".eq('merchant_id', order.merchant_id).eq('status', 'ACTIVE').eq('gdc_mpm_enabled', true)");
+  });
+
+  it('allows an admin to save mapping before static QRIS activation while forcing dynamic MPM off', () => {
+    expect(pendingActivationMigration).toContain("v_application.status NOT IN ('ACTIVE', 'ISSUED_PENDING_ACTIVATION')");
+    expect(pendingActivationMigration).toContain('gdc_mpm_enabled = false');
+    expect(pendingActivationMigration).toContain("'status', v_application.status");
   });
 });

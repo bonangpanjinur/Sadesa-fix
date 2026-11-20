@@ -155,7 +155,7 @@ export default function AdminQrisApplicationsPage() {
     }
   };
 
-  const saveActiveMpmIdentity = async (application: QrisApplication) => {
+  const saveGdcMpmIdentity = async (application: QrisApplication) => {
     if (!user || !gdcMerchantId.trim() || !gdcAccountNumber.trim()) {
       return toast.error('MID dan Account Number GDC wajib diisi.');
     }
@@ -167,7 +167,7 @@ export default function AdminQrisApplicationsPage() {
         p_gdc_account_number: gdcAccountNumber.trim(),
       });
       if (error) throw error;
-      toast.success('Mapping tersimpan dan QRIS MPM Dinamis dinonaktifkan sampai diverifikasi ulang.');
+      toast.success('Mapping tersimpan. QRIS MPM Dinamis tetap nonaktif sampai diaktifkan secara terpisah.');
       await load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Mapping GDC gagal disimpan.');
@@ -329,9 +329,23 @@ export default function AdminQrisApplicationsPage() {
               )}
 
               {selected.status === 'ISSUED_PENDING_ACTIVATION' && (
-                <div className="rounded-lg border p-4">
-                  <p className="mb-3 text-sm">Referensi: <strong>{selected.qris_reference || '—'}</strong>. Pastikan QRIS ini milik toko yang benar sebelum aktivasi. QRIS MPM Dinamis tetap nonaktif sampai diaktifkan terpisah.</p>
-                  <Button disabled={saving} onClick={() => void activate(selected)}><ShieldCheck className="mr-2 h-4 w-4" />Aktifkan QRIS</Button>
+                <div className="space-y-4 rounded-lg border p-4">
+                  <div>
+                    <h3 className="font-semibold">Aktivasi QRIS &amp; mapping GDC</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">Referensi: <strong>{selected.qris_reference || '—'}</strong>. Cocokkan MID dan Account Number dengan toko ini. Menyimpan mapping tidak mengaktifkan QRIS MPM Dinamis; aktivasi MPM tetap menjadi langkah terpisah setelah QRIS Sadesa aktif.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="pending-gdc-merchant-id">GDC Merchant ID (MID)</Label>
+                    <Input id="pending-gdc-merchant-id" value={gdcMerchantId} onChange={(event) => setGdcMerchantId(event.target.value)} maxLength={100} autoComplete="off" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="pending-gdc-account-number">GDC Account Number</Label>
+                    <Input id="pending-gdc-account-number" value={gdcAccountNumber} onChange={(event) => setGdcAccountNumber(event.target.value)} maxLength={100} autoComplete="off" />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" disabled={saving || !gdcMerchantId.trim() || !gdcAccountNumber.trim()} onClick={() => void saveGdcMpmIdentity(selected)}>Simpan Mapping (MPM tetap nonaktif)</Button>
+                    <Button disabled={saving} onClick={() => void activate(selected)}><ShieldCheck className="mr-2 h-4 w-4" />Aktifkan QRIS Sadesa</Button>
+                  </div>
                 </div>
               )}
 
@@ -350,7 +364,7 @@ export default function AdminQrisApplicationsPage() {
                     <Input id="active-gdc-account-number" value={gdcAccountNumber} onChange={(event) => setGdcAccountNumber(event.target.value)} maxLength={100} autoComplete="off" />
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" disabled={saving || !gdcMerchantId.trim() || !gdcAccountNumber.trim()} onClick={() => void saveActiveMpmIdentity(selected)}>Simpan Mapping (Dinamis Dinonaktifkan)</Button>
+                    <Button variant="outline" disabled={saving || !gdcMerchantId.trim() || !gdcAccountNumber.trim()} onClick={() => void saveGdcMpmIdentity(selected)}>Simpan Mapping (Dinamis Dinonaktifkan)</Button>
                     <Button disabled={saving || (!selected.gdc_mpm_enabled && (!hasGdcIdentity || !mappingMatchesSelected))} variant={selected.gdc_mpm_enabled ? 'destructive' : 'default'} onClick={() => void setGdcMpmEnabled(selected, !selected.gdc_mpm_enabled)}>
                       {selected.gdc_mpm_enabled ? 'Nonaktifkan QRIS Dinamis' : 'Aktifkan QRIS Dinamis'}
                     </Button>
