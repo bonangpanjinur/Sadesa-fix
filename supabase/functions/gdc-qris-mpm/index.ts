@@ -215,8 +215,8 @@ async function processRequest(req: Request): Promise<Response> {
   if (input.action === 'create' && (order.payment_status === 'EXPIRED' || order.status === 'CANCELLED' || order.status === 'CANCELED' || order.status === 'REFUNDED')) return json({ error: 'Pesanan telah dibatalkan atau kedaluwarsa.' }, 409, req);
   if (input.action === 'create' && order.confirmation_deadline && new Date(order.confirmation_deadline).getTime() <= Date.now()) return json({ error: 'Batas pembayaran pesanan telah berakhir.' }, 409, req);
   const { data: application, error: applicationError } = await admin.from('qris_applications')
-    .select('gdc_merchant_id, gdc_account_number, qris_merchant_name')
-    .eq('merchant_id', order.merchant_id).eq('status', 'ACTIVE')
+    .select('gdc_merchant_id, gdc_account_number, gdc_mpm_enabled, qris_merchant_name')
+    .eq('merchant_id', order.merchant_id).eq('status', 'ACTIVE').eq('gdc_mpm_enabled', true)
     .order('activated_at', { ascending: false }).limit(1).maybeSingle();
   if (applicationError || !application?.gdc_merchant_id || !application?.gdc_account_number) {
     return json({ error: 'QRIS MPM merchant belum aktif atau data akun GDC belum lengkap. Hubungi merchant.' }, 409, req);

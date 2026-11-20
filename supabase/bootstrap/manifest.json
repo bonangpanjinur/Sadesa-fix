@@ -1,8 +1,8 @@
 {
   "idempotent": true,
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 348,
-  "bundle_count": 142,
+  "migration_count": 349,
+  "bundle_count": 143,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -655,6 +655,14 @@
       ],
       "sha256": "4d5c6e13b19cf8d1635640741e8967b7ce536fb1a6d31538ab5f5b2df2619aa9",
       "bytes": 2553
+    },
+    {
+      "file": "141_20261120220000_gdc_qris_admin_mapping_controls.sql",
+      "source_files": [
+        "141_20261120220000_gdc_qris_admin_mapping_controls.sql"
+      ],
+      "sha256": "f13ca79b743412037db762c2d52370751bb7d44ff0cc55f513634c9ee7c847e9",
+      "bytes": 7639
     },
     {
       "file": "14_20260923152000_automatic_order_fraud_blocks.sql",
