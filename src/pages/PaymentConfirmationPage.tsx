@@ -125,7 +125,7 @@ export default function PaymentConfirmationPage() {
     } finally {
       setGdcLoading(false);
     }
-  }, [orderId, user, guestToken]);
+  }, [orderId]);
 
   // Manual Check Status GDC MPM
   const handleCheckGdcStatus = async () => {
@@ -428,21 +428,21 @@ export default function PaymentConfirmationPage() {
         )}
 
         {/* Petunjuk Pembayaran (Hanya untuk QRIS Manual Toko) */}
-        {!isGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && hasPaymentInstructions && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="font-bold text-sm mb-3">Petunjuk Pembayaran</h3>
-                <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside">
-                  <li>Bayar melalui QRIS atau transfer bank sesuai <strong className="text-foreground">total yang tertera</strong></li>
-                  <li>Pastikan tujuan pembayaran sesuai dengan nama merchant atau rekening pada instruksi</li>
-                  <li><strong className="text-foreground">Upload bukti pembayaran</strong> di atas</li>
-                  <li>Pesanan akan diproses setelah pembayaran dikonfirmasi oleh penjual</li>
-                </ol>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
+        {!isGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && hasPaymentInstructions && <motion.div
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
+        >
+          <Card>
+            <CardContent className="p-4">
+              <h3 className="font-bold text-sm mb-3">Petunjuk Pembayaran</h3>
+              <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside">
+                <li>Bayar melalui QRIS atau transfer bank sesuai <strong className="text-foreground">total yang tertera</strong></li>
+                <li>Pastikan tujuan pembayaran sesuai dengan nama merchant atau rekening pada instruksi</li>
+                <li><strong className="text-foreground">Upload bukti pembayaran</strong> di atas</li>
+                <li>Pesanan akan diproses setelah pembayaran dikonfirmasi oleh penjual</li>
+              </ol>
+            </CardContent>
+          </Card>
+        </motion.div>}
       </div>
 
       {/* Bottom Actions */}

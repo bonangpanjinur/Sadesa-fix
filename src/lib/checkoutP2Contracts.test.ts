@@ -47,7 +47,7 @@ describe('checkout P2 readiness and presentation contracts', () => {
   it('shows a waiting-for-instructions state instead of telling buyers to pay without merchant details', () => {
     expect(paymentPage).toContain('Menunggu instruksi pembayaran');
     expect(paymentPage).toContain('!isPaymentComplete && !isPaymentExpired && !hasPaymentInstructions');
-    expect(paymentPage).toContain('!isPaymentComplete && !isPaymentExpired && hasPaymentInstructions && <motion.div');
+    expect(paymentPage).toContain('!isGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && hasPaymentInstructions && <motion.div');
   });
 
   it('clears purchased cart lines before redirecting to a successful online invoice', () => {

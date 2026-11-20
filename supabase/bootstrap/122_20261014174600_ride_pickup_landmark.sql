@@ -1,3 +1,4 @@
+-- ===== BEGIN SOURCE: 20261014174600_ride_pickup_landmark.sql =====
 -- Sadesa Ojek pickup landmark; forward-only and safe to re-run.
 -- Source: archive/supabase/migrations/20261014174600_ride_pickup_landmark.sql
 DO $bootstrap_do_20261014174600_ride_pickup_landmark$

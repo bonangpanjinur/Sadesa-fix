@@ -1,7 +1,8 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import { MealTimeReminder, getMealPeriod } from './MealTimeReminder';
+import { MealTimeReminder } from './MealTimeReminder';
+import { getMealPeriod } from '@/lib/mealRecommendations';
 
 const auth = vi.hoisted(() => ({ user: { id: 'user-1' } as { id: string } | null }));
 const push = vi.hoisted(() => ({
@@ -44,7 +45,7 @@ describe('MealTimeReminder', () => {
     vi.setSystemTime(new Date(2026, 9, 15, 12, 30));
     render(<MemoryRouter><MealTimeReminder /></MemoryRouter>);
     expect(screen.getByTestId('meal-time-reminder')).toHaveAttribute('aria-label', 'Pengingat makan siang');
-    expect(screen.getByText(/makan siang/i)).toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: 'Pengingat makan siang' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Aktifkan push notification SaDesa' })).toBeInTheDocument();
   });
 

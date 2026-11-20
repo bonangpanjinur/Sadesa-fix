@@ -10,7 +10,6 @@ import { parseHomepageServiceCardImageOverrides } from '@/lib/homeServiceCards';
 import { playSnoozeFeedback } from '@/lib/interactionFeedback';
 import { toast } from 'sonner';
 
-export { getMealPeriod } from '@/lib/mealRecommendations';
 const greetings = { pagi: 'Selamat pagi', siang: 'Selamat siang', sore: 'Selamat sore', malam: 'Selamat malam' };
 const DEFAULT_SCHEDULE: Record<MealPeriod, string> = { pagi: '07:00', siang: '12:00', sore: '16:00', malam: '19:00' };
 const SCHEDULE_STORAGE_KEY = 'sadesa-meal-reminder-schedule';
@@ -219,7 +218,7 @@ export function MealTimeReminder() {
         </div>
       </div>
       {user && isSupported && !isSubscribed && (
-        <Button type="button" size="sm" variant="outline" className="relative h-auto shrink-0 gap-1 rounded-full border-emerald-200 bg-white/90 px-2.5 py-1.5 text-[10px] font-bold text-emerald-900 shadow-sm" onClick={() => void handleEnablePush()} disabled={loading} aria-label="Aktifkan pengingat makan SaDesa">
+        <Button type="button" size="sm" variant="outline" className="relative h-auto shrink-0 gap-1 rounded-full border-emerald-200 bg-white/90 px-2.5 py-1.5 text-[10px] font-bold text-emerald-900 shadow-sm" onClick={() => void handleEnablePush()} disabled={loading} aria-label="Aktifkan push notification SaDesa">
           {loading ? <BellRing className="h-3.5 w-3.5 animate-pulse" aria-hidden="true" /> : <Bell className="h-3.5 w-3.5" aria-hidden="true" />}
           <span className="hidden sm:inline">Aktifkan pengingat</span>
           <span className="sm:hidden">Aktifkan</span>

@@ -44,7 +44,7 @@ export function PaymentProofUpload({ orderId, currentProofUrl, onUploaded, disab
       setPreviewUnavailable(false);
     }
     return () => { active = false; };
-  }, [proofUrl]);
+  }, [orderId, proofUrl]);
 
   const handleFile = async (file: File) => {
     const error = validateFile(file, 5);

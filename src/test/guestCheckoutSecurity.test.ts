@@ -75,7 +75,9 @@ describe('guest checkout security contract', () => {
 
   it('does not expose online payment as a guest checkout option', () => {
     const checkout = read('src/pages/CheckoutPage.tsx');
-    expect(checkout).toContain("if (!user) return 'TRANSFER'");
-    expect(checkout).toContain('{user && xenditAvailable && (');
+    expect(checkout).toContain("if (!isAuthenticated) return 'TRANSFER'");
+    expect(checkout).toContain('const effectivePaymentMethod = getCheckoutPaymentMethod(paymentMethod, Boolean(user));');
+    expect(checkout).toContain('{user && dynamicQrisAvailable && !hasMultipleMerchants && (');
+    expect(checkout).not.toContain('value="ONLINE"');
   });
 });
