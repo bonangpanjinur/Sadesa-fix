@@ -1383,8 +1383,8 @@
       "source_files": [
         "145_20261121005000_marketplace_checkout_independent_of_pos_activation.sql"
       ],
-      "sha256": "7a3c870b92ce56c5e02d19ad2442212e484dcf0b1641093bbd4f371abe31066e",
-      "bytes": 6172
+      "sha256": "9c61bef2d6bb2f193dba3586eb4a43a2aa966d776516ee662252ae5c34ffad0a",
+      "bytes": 6176
     }
   ]
 }

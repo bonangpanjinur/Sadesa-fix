@@ -139,3 +139,4 @@ BEGIN
 
   RETURN jsonb_build_object('reservation_id', v_reservation_id, 'status', 'active', 'quantity', v_total, 'expires_at', p_expires_at);
 END;
+$$;

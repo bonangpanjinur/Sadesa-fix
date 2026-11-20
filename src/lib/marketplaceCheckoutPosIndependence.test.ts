@@ -11,6 +11,7 @@ describe('marketplace checkout independent of POS activation', () => {
   it('uses POS outlet reservations only when the tenant passes the active POS entitlement check', () => {
     expect(migration).toContain('public.is_pos_tenant_active(pt.id)');
     expect(migration).not.toMatch(/WHERE pt\.merchant_id = v_order\.merchant_id AND pt\.is_active = true/);
+    expect(migration.trimEnd()).toMatch(/END;\s*\$\$;$/);
   });
 
   it('retains marketplace stock reservation fallback for inactive POS tenants', () => {
