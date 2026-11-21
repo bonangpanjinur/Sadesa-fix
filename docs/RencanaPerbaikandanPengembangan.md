@@ -54,7 +54,9 @@ Bagian ini adalah status terbaru terhadap repository pada commit `69d03525` (`fi
 
 ### Catatan status
 
-Item “sudah selesai” di atas berarti source code dan pemeriksaan repository sudah dilakukan, bukan berarti fitur sudah aktif di production. Item “belum selesai” tetap menjadi pekerjaan lanjutan sebelum menyatakan integrasi siap production. Perubahan source dan dokumen sudah di-commit ke `bonangpanjinur/Sadesa-fix:main`.
+Item “sudah selesai” di atas berarti source code dan pemeriksaan repository sudah dilakukan, bukan berarti fitur sudah aktif di production. Item “belum selesai” tetap menjadi pekerjaan lanjutan sebelum menyatakan integrasi siap production. Perubahan source dan dokumen sudah di-commit ke `bonangpanjinur/Sadesa-fix:main` setelah validasi sesi ini.
+
+Perbaikan rekonsiliasi terbaru menambahkan worker `gdc-qris-reconcile` yang mengambil maksimal 20 payment `PENDING`, melakukan query GDC, memvalidasi reference dan nominal, lalu memanggil settlement canonical. Expiry memakai grace period 15 menit dan dijadwalkan melalui `pg_cron` + `pg_net` menggunakan `CRON_SECRET` khusus dari Vault. Deployment function, migration, secret, dan uji provider nyata tetap belum dilakukan.
 
 ### Keputusan keamanan saat ini
 

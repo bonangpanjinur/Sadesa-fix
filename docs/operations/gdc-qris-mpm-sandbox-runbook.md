@@ -15,9 +15,11 @@ Panduan ini untuk memasang dan menguji QRIS dinamis GDC pada **Supabase sandbox/
 | Lokasi | Yang boleh disimpan | Yang dilarang |
 |---|---|---|
 | Vercel/frontend | `VITE_SUPABASE_URL`, publishable/anon key, dan konfigurasi UI non-rahasia | Semua `GDC_*`, `ALLOWED_ORIGINS`, `GDC_ADMIN_PREVIEW_ENABLED`, service-role key, private key, client secret, access token, dan signature |
-| Supabase Edge Functions | Semua `GDC_*`, `ALLOWED_ORIGINS`, `GDC_ADMIN_PREVIEW_ENABLED`, serta secret runtime Supabase melalui Secret Manager | Menyalin secret ke source code, browser, Vercel, Git, atau log |
+| Supabase Edge Functions | Semua `GDC_*`, `ALLOWED_ORIGINS`, `GDC_ADMIN_PREVIEW_ENABLED`, `CRON_SECRET`, serta secret runtime Supabase melalui Secret Manager/Vault | Menyalin secret ke source code, browser, Vercel, Git, atau log |
 
 `ALLOWED_ORIGINS` berisi daftar origin yang dipisahkan koma dan sudah disetujui. `GDC_ADMIN_PREVIEW_ENABLED=true` hanya untuk preview sandbox; production harus `false`.
+
+`gdc-qris-reconcile` adalah worker service-role-backed yang menerima hanya header `x-cron-secret` dengan nilai `CRON_SECRET` khusus. Worker mengambil maksimal 20 payment `PENDING` per run, query GDC satu per satu, memvalidasi reference/nominal, lalu memanggil `settle_gdc_qris_mpm_payment`. Payment baru boleh di-expire setelah masa tenggang 15 menit dan setelah kesempatan query worker. Migration `147` menjadwalkannya melalui `pg_cron` + `pg_net`; URL Supabase dan `GDC_RECONCILE_CRON_SECRET` harus tersedia di Supabase Vault.
 
 ## 2. Konfigurasi gateway dan deploy function
 

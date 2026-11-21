@@ -283,12 +283,7 @@ async function processRequest(req: Request): Promise<Response> {
   }
   if (input.action === 'create' && (order.payment_status === 'EXPIRED' || order.status === 'CANCELLED' || order.status === 'CANCELED' || order.status === 'REFUNDED')) return json({ error: 'Pesanan telah dibatalkan atau kedaluwarsa.' }, 409, req);
   const deadline = order.confirmation_deadline ? new Date(order.confirmation_deadline).getTime() : null;
-  if (deadline && deadline <= Date.now()) {
-    if (payment_status_is_pending(order.payment_status)) {
-      await admin.from('gdc_qris_mpm_payments').update({ status: 'EXPIRED', error_code: 'PAYMENT_DEADLINE_EXPIRED', updated_at: new Date().toISOString() }).eq('order_id', order.id).in('status', ['CREATING', 'PENDING']);
-    }
-    return json({ order_id: order.id, status: 'EXPIRED', amount: Number(order.total), currency: 'IDR', qr_content: null, reference_no: null, paid_at: null }, 200, req);
-  }
+  const deadlinePassed = Boolean(deadline && deadline <= Date.now());
   const { data: application, error: applicationError } = await admin.from('qris_applications')
     .select('gdc_merchant_id, gdc_account_number, gdc_mpm_enabled, qris_merchant_name')
     .eq('merchant_id', order.merchant_id).eq('status', 'ACTIVE').eq('gdc_mpm_enabled', true)
@@ -305,10 +300,12 @@ async function processRequest(req: Request): Promise<Response> {
     console.error('GDC payment merchant mismatch', { orderId: order.id });
     return json({ error: 'Data pembayaran tidak cocok dengan toko pesanan.' }, 409, req);
   }
-  if (payment?.status === 'PENDING' || payment?.status === 'PAID' || payment?.status === 'EXPIRED') return json(responsePayment(payment as PaymentRow));
+  if (payment?.status === 'PENDING' && !(deadlinePassed && input.action === 'status')) return json(responsePayment(payment as PaymentRow));
+  if (payment?.status === 'PAID' || payment?.status === 'EXPIRED') return json(responsePayment(payment as PaymentRow));
   if (payment?.status === 'FAILED' && input.action === 'create' && payment.error_code !== 'QR_CREATE_FAILED') {
     return json({ error: 'Pembayaran ini sudah dinyatakan gagal oleh provider. Hubungi merchant untuk instruksi berikutnya.' }, 409, req);
   }
+  if (deadlinePassed && !payment) return json({ order_id: order.id, status: 'EXPIRED', amount: Number(order.total), currency: 'IDR', qr_content: null, reference_no: null, paid_at: null }, 200, req);
   if (input.action === 'status' && !payment) return json({ error: 'QRIS pembayaran belum dibuat.' }, 404, req);
   if (!payment) {
     const { data: inserted, error: insertError } = await admin.from('gdc_qris_mpm_payments').insert({
@@ -411,6 +408,10 @@ async function processRequest(req: Request): Promise<Response> {
       const { data: failed } = await admin.from('gdc_qris_mpm_payments').update({ status: 'FAILED', provider_response_code: queried.latestTransactionStatus, updated_at: new Date().toISOString() })
         .eq('order_id', order.id).eq('status', 'PENDING').select('*').maybeSingle();
       return json(responsePayment((failed || existingPayment) as PaymentRow), 200, req);
+    }
+    if (deadlinePassed) {
+      const { data: expired } = await admin.from('gdc_qris_mpm_payments').update({ status: 'EXPIRED', error_code: 'PAYMENT_DEADLINE_EXPIRED', updated_at: new Date().toISOString() }).eq('order_id', order.id).eq('status', 'PENDING').select('*').maybeSingle();
+      return json(responsePayment((expired || existingPayment) as PaymentRow), 200, req);
     }
     return json(responsePayment(existingPayment), 200, req);
   } catch (error) {
