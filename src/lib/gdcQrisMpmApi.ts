@@ -18,8 +18,7 @@ export interface GdcQrisMpmPreview {
   reference_no: string;
 }
 
-async function previewFunctionErrorMessage(error: unknown): Promise<string> {
-  const fallback = 'Layanan preview QRIS sandbox tidak tersedia.';
+async function functionErrorMessage(error: unknown, fallback: string): Promise<string> {
   if (!error || typeof error !== 'object') return fallback;
   const functionError = error as { message?: unknown; context?: unknown };
   const context = functionError.context;
@@ -40,6 +39,17 @@ async function previewFunctionErrorMessage(error: unknown): Promise<string> {
     : fallback;
 }
 
+async function invokeAuthenticatedGdc(body: Record<string, string>) {
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !session?.access_token) {
+    throw new Error('Sesi login tidak ditemukan. Silakan masuk kembali lalu coba lagi.');
+  }
+  return supabase.functions.invoke('gdc-qris-mpm', {
+    body,
+    headers: { Authorization: `Bearer ${session.access_token}` },
+  });
+}
+
 function parsePayment(value: unknown): GdcQrisMpmPayment {
   if (!value || typeof value !== 'object') throw new Error('Respons pembayaran QRIS tidak valid.');
   const payment = value as Record<string, unknown>;
@@ -58,10 +68,8 @@ function parsePayment(value: unknown): GdcQrisMpmPayment {
 }
 
 async function requestPayment(action: 'create' | 'status', orderId: string): Promise<GdcQrisMpmPayment> {
-  const { data, error } = await supabase.functions.invoke('gdc-qris-mpm', {
-    body: { action, order_id: orderId },
-  });
-  if (error) throw new Error(error.message || 'Layanan QRIS dinamis tidak tersedia.');
+  const { data, error } = await invokeAuthenticatedGdc({ action, order_id: orderId });
+  if (error) throw new Error(await functionErrorMessage(error, 'Layanan QRIS dinamis tidak tersedia.'));
   return parsePayment(data);
 }
 
@@ -74,10 +82,8 @@ export function queryGdcQrisMpmStatus(orderId: string): Promise<GdcQrisMpmPaymen
 }
 
 export async function previewGdcQrisMpm(applicationId: string): Promise<GdcQrisMpmPreview> {
-  const { data, error } = await supabase.functions.invoke('gdc-qris-mpm', {
-    body: { action: 'admin_preview', application_id: applicationId },
-  });
-  if (error) throw new Error(await previewFunctionErrorMessage(error));
+  const { data, error } = await invokeAuthenticatedGdc({ action: 'admin_preview', application_id: applicationId });
+  if (error) throw new Error(await functionErrorMessage(error, 'Layanan preview QRIS sandbox tidak tersedia.'));
   if (!data || typeof data !== 'object') throw new Error('Respons QR uji GDC tidak valid.');
   const preview = data as Record<string, unknown>;
   if (typeof preview.error === 'string') throw new Error(preview.error);

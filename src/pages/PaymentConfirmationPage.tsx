@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Copy, CheckCircle, QrCode as QrIcon, CreditCard, Clock, AlertTriangle, RefreshCw, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -41,7 +41,7 @@ export default function PaymentConfirmationPage() {
   const navigate = useNavigate();
   const { orderId } = useParams();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const guestToken = searchParams.get('guest_token') || getGuestOrderAccess(orderId || '', null)?.token;
   
   const [order, setOrder] = useState<OrderInfo | null>(null);
@@ -54,6 +54,7 @@ export default function PaymentConfirmationPage() {
   const [gdcPayment, setGdcPayment] = useState<GdcQrisMpmPayment | null>(null);
   const [gdcLoading, setGdcLoading] = useState(false);
   const [gdcError, setGdcError] = useState<string | null>(null);
+  const autoCreateAttemptedForRef = useRef<string | null>(null);
 
   const isGdcMpmPayment = isGdcMpmProvider || Boolean(gdcPayment) || order?.payment_channel === 'QRIS_MPM_GDC';
 
@@ -148,7 +149,12 @@ export default function PaymentConfirmationPage() {
   };
 
   useEffect(() => {
-    if (!orderId || (!user && !guestToken)) return;
+    if (!orderId || authLoading) return;
+    if (!user && !guestToken) {
+      setLoadError('Sesi login tidak ditemukan. Silakan masuk kembali lalu coba lagi.');
+      setLoading(false);
+      return;
+    }
     void loadOrderAndPaymentInfo();
     const refreshInterval = window.setInterval(() => void loadOrderAndPaymentInfo(false), 15000);
     const channel = user
@@ -162,14 +168,20 @@ export default function PaymentConfirmationPage() {
       window.clearInterval(refreshInterval);
       if (channel) void supabase.removeChannel(channel);
     };
-  }, [orderId, user, guestToken, loadOrderAndPaymentInfo]);
+  }, [orderId, user, guestToken, authLoading, loadOrderAndPaymentInfo]);
 
   // Trigger pembuatan QRIS dinamis jika opsi provider=gdc-mpm aktif
   useEffect(() => {
-    if (isGdcMpmProvider && orderId && !gdcPayment && !gdcLoading) {
+    const attemptKey = orderId ? `${orderId}:gdc-mpm` : null;
+    if (isGdcMpmProvider && attemptKey && !authLoading && !gdcPayment && autoCreateAttemptedForRef.current !== attemptKey) {
+      autoCreateAttemptedForRef.current = attemptKey;
+      if (!user) {
+        setGdcError('Sesi login tidak ditemukan. Silakan masuk kembali lalu coba lagi.');
+        return;
+      }
       void loadGdcPayment();
     }
-  }, [isGdcMpmProvider, orderId, gdcPayment, gdcLoading, loadGdcPayment]);
+  }, [isGdcMpmProvider, orderId, user, authLoading, gdcPayment, loadGdcPayment]);
 
   useEffect(() => {
     if (!isGdcMpmProvider || !orderId || !gdcPayment || !['PENDING'].includes(gdcPayment.status)) return;
