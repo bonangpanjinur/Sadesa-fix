@@ -14,6 +14,10 @@ const settingsPage = readFileSync(
   resolve(process.cwd(), 'src/pages/merchant/MerchantSettingsPage.tsx'),
   'utf8',
 );
+const dynamicQrisApplication = readFileSync(
+  resolve(process.cwd(), 'src/components/merchant/MerchantQrisApplicationCard.tsx'),
+  'utf8',
+);
 
 describe('static merchant QRIS contract', () => {
   it('removes stale checkout overloads while preserving the canonical key-based signature', () => {
@@ -34,7 +38,11 @@ describe('static merchant QRIS contract', () => {
     expect(settingsPage).toContain('bucket="qris-merchant-static"');
     expect(settingsPage).toContain('path={`qris/${merchant.id}`}');
     expect(settingsPage).toContain('qris_image_url: qrisImageUrl || null');
-    expect(settingsPage).toContain('QRIS statis merchant');
+    expect(settingsPage).toContain('QRIS statis, dan ajukan aktivasi QRIS Dinamis GDC');
+    expect(settingsPage).toContain('MerchantQrisApplicationCard');
+    expect(settingsPage).toContain('bankName={merchant.bank_name}');
+    expect(dynamicQrisApplication).toContain('Pengajuan QRIS Dinamis GDC');
+    expect(dynamicQrisApplication).toContain('application.gdc_mpm_enabled === true');
   });
 
   it('keeps manual QRIS or bank transfer on the existing proof workflow', () => {

@@ -23,6 +23,7 @@ import { fetchDistricts, fetchProvinces, fetchRegencies, fetchVillages } from '@
 import { MerchantOperatingHoursCard } from '@/components/merchant/MerchantOperatingHoursCard';
 import { OrderAlarmSettingsControl } from '@/components/notifications/OrderAlarmSettingsControl';
 import { getStaticQrisPublicUrl } from '@/lib/staticQris';
+import { MerchantQrisApplicationCard } from '@/components/merchant/MerchantQrisApplicationCard';
 
 interface MerchantData {
   id: string;
@@ -478,7 +479,7 @@ export default function MerchantSettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2"><CreditCard className="h-5 w-5" />Pengaturan Pembayaran</CardTitle>
-            <CardDescription>Simpan rekening bank untuk pengelolaan admin dan pencairan dana, lalu unggah QRIS statis toko agar pembeli dapat membayar langsung ke merchant.</CardDescription>
+            <CardDescription>Simpan rekening bank toko, kelola QRIS statis, dan ajukan aktivasi QRIS Dinamis GDC langsung dari sini.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div role="status" className="rounded-lg border border-warning/30 bg-warning/5 p-3">
@@ -488,8 +489,8 @@ export default function MerchantSettingsPage() {
               </p>
             </div>
             <div role="status" className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
-              <p className="font-medium">Metode checkout: QRIS statis merchant</p>
-              <p className="mt-1 text-xs text-muted-foreground">Unggah QRIS milik toko Anda. QRIS akan ditampilkan pada checkout setelah disimpan; QRIS dinamis/provider akan dikonfigurasi admin pada tahap berikutnya.</p>
+              <p className="font-medium">Pembayaran QRIS: statis dan dinamis</p>
+              <p className="mt-1 text-xs text-muted-foreground">QRIS statis toko dapat digunakan di checkout. Ajukan QRIS Dinamis GDC di bawah; metode dinamis tersedia setelah data merchant diverifikasi dan diaktifkan admin.</p>
             </div>
             <div className="space-y-4 border-t pt-4">
               <h4 className="font-medium text-sm flex items-center gap-2"><CreditCard className="h-4 w-4" />Rekening Bank</h4>
@@ -527,6 +528,22 @@ export default function MerchantSettingsPage() {
                 placeholder="Upload QRIS statis toko"
               />
               <p className="text-xs text-muted-foreground">Format JPG/PNG, maksimal 5 MB. QRIS lama akan digantikan saat Anda menyimpan QRIS baru.</p>
+            </div>
+            <div
+              className="border-t pt-6"
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && event.target instanceof HTMLInputElement && event.target.type !== 'file') {
+                  event.preventDefault();
+                }
+              }}
+            >
+              <MerchantQrisApplicationCard
+                merchantId={merchant.id}
+                merchantName={merchant.name}
+                bankName={merchant.bank_name}
+                accountNumber={merchant.bank_account_number}
+                accountName={merchant.bank_account_name}
+              />
             </div>
           </CardContent>
         </Card>

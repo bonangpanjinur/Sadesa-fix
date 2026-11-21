@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type Status = 'SUBMITTED' | 'IN_REVIEW' | 'NEEDS_CORRECTION' | 'REJECTED' | 'APPROVED_PENDING_ISSUANCE' | 'ISSUED_PENDING_ACTIVATION' | 'ACTIVE';
-type Application = { id: string; application_number: string; status: Status; business_criteria_code: string; business_age_code: string; qris_merchant_name_short: string; qris_merchant_name: string; documents: Record<string,string>; decision_note: string | null; submitted_at: string; revision_number: number };
+type Application = { id: string; application_number: string; status: Status; business_criteria_code: string; business_age_code: string; qris_merchant_name_short: string; qris_merchant_name: string; documents: Record<string,string>; decision_note: string | null; submitted_at: string; revision_number: number; gdc_mpm_enabled?: boolean };
 // qris_applications is a newly introduced table not yet present in generated Supabase types.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -22,10 +22,10 @@ const requiredDocuments = [
 ] as const;
 const statusLabels: Record<Status,string> = {
   SUBMITTED: 'Menunggu verifikasi', IN_REVIEW: 'Sedang ditinjau', NEEDS_CORRECTION: 'Perlu perbaikan', REJECTED: 'Pengajuan ditolak',
-  APPROVED_PENDING_ISSUANCE: 'Disetujui — menunggu penerbitan', ISSUED_PENDING_ACTIVATION: 'Menunggu aktivasi', ACTIVE: 'QRIS Sadesa aktif',
+  APPROVED_PENDING_ISSUANCE: 'Disetujui — menunggu konfigurasi GDC', ISSUED_PENDING_ACTIVATION: 'Menunggu aktivasi admin', ACTIVE: 'Disetujui — menunggu aktivasi QRIS Dinamis',
 };
 
-export function MerchantQrisApplicationCard({ merchantId, merchantName, qrisImageUrl, bankName, accountNumber, accountName }: { merchantId: string; merchantName: string; qrisImageUrl: string | null; bankName: string | null; accountNumber: string | null; accountName: string | null }) {
+export function MerchantQrisApplicationCard({ merchantId, merchantName, bankName, accountNumber, accountName }: { merchantId: string; merchantName: string; bankName: string | null; accountNumber: string | null; accountName: string | null }) {
   const { user } = useAuth();
   const [application, setApplication] = useState<Application | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,6 +55,7 @@ export function MerchantQrisApplicationCard({ merchantId, merchantName, qrisImag
 
   const needsCorrection = application?.status === 'NEEDS_CORRECTION';
   const canApply = !application || needsCorrection || application.status === 'REJECTED';
+  const dynamicQrisActive = application?.status === 'ACTIVE' && application.gdc_mpm_enabled === true;
   const submit = async () => {
     if (!user) return;
     if (!bankName?.trim() || !accountNumber?.trim() || !accountName?.trim()) return toast.error('Lengkapi rekening bank default di Pengaturan Pembayaran sebelum mengajukan QRIS.');
@@ -90,7 +91,7 @@ export function MerchantQrisApplicationCard({ merchantId, merchantName, qrisImag
       if (error) throw error;
       setApplication(data as Application);
       setFiles({});
-      toast.success('Pengajuan QRIS Sadesa berhasil dikirim. Admin akan memverifikasi data Anda.');
+      toast.success('Pengajuan QRIS Dinamis GDC berhasil dikirim. Admin akan memverifikasi data Anda.');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Pengajuan QRIS gagal dikirim.');
     } finally { setSaving(false); }
@@ -98,19 +99,19 @@ export function MerchantQrisApplicationCard({ merchantId, merchantName, qrisImag
 
   return <Card>
     <CardHeader>
-      <CardTitle className="flex items-center gap-2 text-base"><QrCode className="h-5 w-5" />QRIS Sadesa</CardTitle>
-      <CardDescription>Ajukan data QRIS untuk toko Anda. Tim Desa akan memverifikasi dan mendaftarkan merchant ke Neo/GDC secara manual. Setelah QRIS statis diterbitkan, tim akan mengunggah dan mengaktifkannya; merchant tidak dapat mengunggah atau mengganti QRIS sendiri.</CardDescription>
+      <CardTitle className="flex items-center gap-2 text-base"><QrCode className="h-5 w-5" />Pengajuan QRIS Dinamis GDC</CardTitle>
+      <CardDescription>Ajukan aktivasi QRIS Dinamis untuk toko Anda. Admin akan memverifikasi data dan dokumen, lalu mengatur mapping merchant GDC. QR pembayaran dibuat untuk setiap pesanan sesuai total belanja; pengaturan QRIS statis toko tetap terpisah.</CardDescription>
     </CardHeader>
     <CardContent className="space-y-5">
       {loading ? <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Memuat status pengajuan…</div> : <>
         {application && <div className={`rounded-lg border p-4 ${application.status === 'ACTIVE' ? 'border-emerald-300 bg-emerald-50' : 'border-primary/20 bg-primary/5'}`}>
-          <div className="flex items-center gap-2 font-semibold">{application.status === 'ACTIVE' ? <CheckCircle2 className="h-4 w-4 text-emerald-700" /> : <Clock3 className="h-4 w-4 text-primary" />}{statusLabels[application.status]}</div>
+          <div className="flex items-center gap-2 font-semibold">{dynamicQrisActive ? <CheckCircle2 className="h-4 w-4 text-emerald-700" /> : <Clock3 className="h-4 w-4 text-primary" />}{dynamicQrisActive ? 'QRIS Dinamis GDC aktif' : statusLabels[application.status]}</div>
           <p className="mt-1 text-xs text-muted-foreground">Nomor pengajuan {application.application_number} · {new Date(application.submitted_at).toLocaleDateString('id-ID')}</p>
           {application.decision_note && <p className="mt-2 text-sm">Catatan admin: {application.decision_note}</p>}
         </div>}
-        {application?.status === 'ACTIVE' && qrisImageUrl && <div className="rounded-lg border p-4"><p className="mb-3 text-sm font-semibold">QRIS Sadesa toko Anda</p><img src={qrisImageUrl} alt={`QRIS Sadesa ${merchantName}`} className="mx-auto max-h-72 w-auto rounded-md object-contain" /><p className="mt-3 text-xs text-muted-foreground">QRIS ini ditetapkan oleh admin dan tidak dapat diganti dari akun merchant.</p></div>}
+        {dynamicQrisActive && <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-4"><p className="font-semibold text-emerald-900">QRIS Dinamis GDC aktif untuk {merchantName}</p><p className="mt-1 text-sm text-emerald-800">Pembeli dapat memilih QRIS Dinamis di checkout. QR pembayaran dibuat berdasarkan total pesanan.</p></div>}
         {canApply && <div className="space-y-4">
-          {!application && <div className="rounded-lg bg-muted p-3 text-sm">Lengkapi formulir untuk meminta penerbitan QRIS Sadesa bagi <strong>{merchantName}</strong>.</div>}
+          {!application && <div className="rounded-lg bg-muted p-3 text-sm">Lengkapi formulir untuk mengajukan aktivasi QRIS Dinamis GDC bagi <strong>{merchantName}</strong>.</div>}
           <div className="rounded-lg border bg-muted/40 p-3 text-sm"><p className="font-medium">Nomor Akun Default</p><p className="mt-1 text-muted-foreground">{bankName && accountNumber && accountName ? `${bankName} · ${accountNumber} · ${accountName}` : 'Rekening penerimaan belum lengkap. Lengkapi rekening bank di bagian Pengaturan Pembayaran sebelum mengajukan.'}</p></div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2"><Label>Kriteria Bisnis (UMKM atau bukan)</Label><Select value={criteria} onValueChange={setCriteria}><SelectTrigger><SelectValue placeholder="Pilih kriteria bisnis" /></SelectTrigger><SelectContent>
@@ -124,7 +125,7 @@ export function MerchantQrisApplicationCard({ merchantId, merchantName, qrisImag
           </div>
           <div className="grid gap-4 sm:grid-cols-2">{requiredDocuments.map(({ code, label }) => <div key={code} className="space-y-2"><Label>{label} <span className="text-destructive">*</span></Label><label className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed p-3 text-sm hover:bg-muted/60"><FileImage className="h-5 w-5 text-muted-foreground" /><span className="min-w-0 flex-1 truncate">{files[code]?.name || (application?.documents?.[code] ? 'Dokumen tersimpan · pilih untuk mengganti' : 'Pilih foto JPG/PNG')}</span><Upload className="h-4 w-4" /><input type="file" accept="image/jpeg,image/png" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) setFiles((current) => ({ ...current, [code]: file })); }} /></label><p className="text-xs text-muted-foreground">JPG atau PNG, maksimal 2 MB.</p></div>)}</div>
           <p className="text-xs text-muted-foreground">Dengan mengirim, Anda menyatakan data benar. Dokumen disimpan privat untuk keperluan verifikasi QRIS.</p>
-          <Button onClick={() => void submit()} disabled={saving} className="gap-2">{saving && <Loader2 className="h-4 w-4 animate-spin" />}{needsCorrection ? 'Kirim Perbaikan' : 'Kirim Pengajuan QRIS'}</Button>
+          <Button type="button" onClick={() => void submit()} disabled={saving} className="gap-2">{saving && <Loader2 className="h-4 w-4 animate-spin" />}{needsCorrection ? 'Kirim Perbaikan' : 'Kirim Pengajuan QRIS Dinamis'}</Button>
         </div>}
       </>}
     </CardContent>
