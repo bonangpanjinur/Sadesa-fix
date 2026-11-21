@@ -9,6 +9,7 @@ const API_PATHS = {
   generate: "/v1.0/qr/qr-mpm-generate",
   query: "/v1.0/qr/qr-mpm-query",
 } as const;
+const queryThrottle = new Map<string, number>();
 const encoder = new TextEncoder();
 const corsHeaders = {
   "Access-Control-Allow-Origin": "https://sadesa.id",
@@ -274,6 +275,8 @@ async function processRequest(req: Request): Promise<Response> {
         p_order_id: order.id,
         p_partner_reference_no: existingPayment.partner_reference_no,
         p_reference_no: existingPayment.reference_no,
+        p_external_id: existingPayment.external_id,
+        p_currency: existingPayment.currency,
         p_paid_amount: paidAmount,
         p_paid_at: queried.paidTime || null,
       });

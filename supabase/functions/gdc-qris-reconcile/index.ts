@@ -45,7 +45,15 @@ async function reconcileOne(admin: ReturnType<typeof createClient>, payment: Pay
   if (queried.latestTransactionStatus === "00") {
     const paidAmount = amount(queried.amount);
     if (queried.amount && (queried.amount as { currency?: unknown }).currency !== "IDR" || paidAmount !== Math.round(Number(payment.amount) * 100)) throw new Error("GDC amount mismatch");
-    const { error: settleError } = await admin.rpc("settle_gdc_qris_mpm_payment", { p_order_id: payment.order_id, p_partner_reference_no: payment.partner_reference_no, p_reference_no: payment.reference_no, p_paid_amount: Number(payment.amount), p_paid_at: typeof queried.paidTime === "string" ? queried.paidTime : null });
+    const { error: settleError } = await admin.rpc("settle_gdc_qris_mpm_payment", {
+      p_order_id: payment.order_id,
+      p_partner_reference_no: payment.partner_reference_no,
+      p_reference_no: payment.reference_no,
+      p_external_id: payment.external_id,
+      p_currency: "IDR",
+      p_paid_amount: Number(payment.amount),
+      p_paid_at: typeof queried.paidTime === "string" ? queried.paidTime : null,
+    });
     if (!settleError) return "settled";
     // 22023 = order no longer eligible (cancelled/expired/refunded) while the provider reports money received.
     if (payment.status === "EXPIRED" && settleError.code === "22023") {

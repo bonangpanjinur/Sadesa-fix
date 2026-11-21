@@ -18,7 +18,14 @@ describe('GDC QRIS MPM reconciliation worker contract', () => {
     expect(worker).toContain('QUERY_PATH = "/v1.0/qr/qr-mpm-query"');
     expect(worker).toContain('.limit(20)');
     expect(worker).toContain('settle_gdc_qris_mpm_payment');
+    expect(worker).toContain('p_external_id: payment.external_id');
+    expect(worker).toContain('p_currency: "IDR"');
     expect(worker).toContain('setTimeout(resolve, 100)');
+  });
+
+  it('passes the complete settlement identity from the MPM handler', () => {
+    expect(checkout).toContain('p_external_id: existingPayment.external_id');
+    expect(checkout).toContain('p_currency: existingPayment.currency');
   });
 
   it('keeps GDC signing and token exchange in the shared module', () => {
