@@ -10,8 +10,15 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 bundle_dir = root / "supabase/bootstrap"
 marker = re.compile(r"^-- ===== BEGIN SOURCE: (.+) =====$", re.MULTILINE)
+
+
+def bundle_sort_key(path: Path) -> tuple[int, str]:
+    match = re.match(r'^(\d+)_', path.name)
+    return (int(match.group(1)) if match else 10**9, path.name)
+
+
 bundles = []
-for path in sorted(bundle_dir.glob("[0-9]*_*.sql")):
+for path in sorted(bundle_dir.glob("[0-9]*_*.sql"), key=bundle_sort_key):
     payload = path.read_bytes()
     text = payload.decode("utf-8")
     sources = marker.findall(text) or [path.name]

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Copy, CheckCircle, QrCode as QrIcon, CreditCard, Clock, AlertTriangle, RefreshCw, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import QRCode from 'react-qr-code';
+import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -173,18 +173,33 @@ export default function PaymentConfirmationPage() {
 
   useEffect(() => {
     if (!isGdcMpmProvider || !orderId || !gdcPayment || !['PENDING'].includes(gdcPayment.status)) return;
-    const poll = window.setInterval(async () => {
+    let cancelled = false;
+    let timeout: number | undefined;
+    let delay = 5000;
+    const deadline = order?.confirmation_deadline ? Date.parse(order.confirmation_deadline) : Number.POSITIVE_INFINITY;
+    const poll = async () => {
+      if (cancelled || Date.now() >= deadline) {
+        if (!cancelled && order) setGdcPayment({ ...gdcPayment, status: 'EXPIRED' });
+        return;
+      }
       try {
         const payment = await queryGdcQrisMpmStatus(orderId);
+        if (cancelled) return;
         setGdcPayment(payment);
         await loadOrderAndPaymentInfo(false);
-        if (payment.status === 'PAID' || payment.status === 'FAILED') window.clearInterval(poll);
+        if (payment.status === 'PAID' || payment.status === 'FAILED' || payment.status === 'EXPIRED') return;
+        delay = Math.min(delay * 2, 30000);
       } catch (error) {
         console.warn('Polling status QRIS GDC gagal:', error instanceof Error ? error.message : 'unknown');
       }
-    }, 10000);
-    return () => window.clearInterval(poll);
-  }, [gdcPayment, isGdcMpmProvider, loadOrderAndPaymentInfo, orderId]);
+      if (!cancelled) timeout = window.setTimeout(() => void poll(), delay);
+    };
+    timeout = window.setTimeout(() => void poll(), delay);
+    return () => {
+      cancelled = true;
+      if (timeout) window.clearTimeout(timeout);
+    };
+  }, [gdcPayment, isGdcMpmProvider, loadOrderAndPaymentInfo, order, orderId]);
 
   const handleCopyAmount = () => {
     if (order?.total) {
@@ -218,7 +233,7 @@ export default function PaymentConfirmationPage() {
   const paymentStatus = order.payment_status.toUpperCase();
   const isPaymentComplete = ['PAID', 'VERIFIED', 'COMPLETED', 'SUCCESS'].includes(paymentStatus);
   const isPaymentRejected = paymentStatus === 'FAILED' || paymentStatus === 'REJECTED';
-  const isPaymentExpired = paymentStatus === 'EXPIRED'
+  const isPaymentExpired = paymentStatus === 'EXPIRED' || gdcPayment?.status === 'EXPIRED'
     || Boolean(order.confirmation_deadline && Date.parse(order.confirmation_deadline) <= Date.now() && !isPaymentComplete);
   const hasPaymentInstructions = Boolean(paymentInfo.qrisImageUrl || (paymentInfo.bankName && paymentInfo.bankAccountNumber && paymentInfo.bankAccountName));
   const statusLabel = isPaymentComplete ? 'Pembayaran Diterima' : isPaymentExpired ? 'Pembayaran Kedaluwarsa' : isPaymentRejected ? 'Bukti Ditolak' : 'Menunggu Pembayaran';
@@ -304,7 +319,7 @@ export default function PaymentConfirmationPage() {
           </Card>
         )}
 
-        {/* Section 1: GDC QRIS MPM Dinamis (Render lewat react-qr-code) */}
+        {/* Section 1: GDC QRIS MPM Dinamis (Render lewat qrcode.react) */}
         {isGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
             <Card>
@@ -331,11 +346,11 @@ export default function PaymentConfirmationPage() {
                 ) : gdcPayment?.qr_content ? (
                   <div className="flex flex-col items-center w-full">
                     <div className="p-4 bg-white rounded-xl border border-border shadow-sm my-2 flex justify-center">
-                      <QRCode
+                      <QRCodeSVG
                         value={gdcPayment.qr_content}
                         size={220}
                         style={{ height: 'auto', maxWidth: '100%', width: '100%' }}
-                        viewBox="0 0 256 256"
+                        level="M"
                       />
                     </div>
                     <p className="text-xs text-muted-foreground max-w-xs mt-2">

@@ -5,11 +5,11 @@ import { resolve } from 'node:path';
 const source = readFileSync(resolve(process.cwd(), 'supabase/functions/gdc-qris-mpm/index.ts'), 'utf8');
 const supabaseConfig = readFileSync(resolve(process.cwd(), 'supabase/config.toml'), 'utf8');
 const previewBranch = source.split("if (input.action === 'admin_preview') {")[1]?.split("if (!input.order_id")[0] ?? '';
-const supabaseConfig = readFileSync(resolve(process.cwd(), 'supabase/config.toml'), 'utf8');
+const authGuard = source.split("if (input.action === 'admin_preview') {")[0] ?? '';
 
 describe('GDC QRIS MPM admin preview safety contract', () => {
   it('lets the handler validate the bearer token instead of rejecting it at the gateway', () => {
-    expect(supabaseConfig).toMatch(/\[functions\.gdc-qris-mpm\][\s\S]*?verify_jwt = false/);
+    expect(supabaseConfig).toMatch(/\[functions\.gdc-qris-mpm\][\s\S]*?verify_jwt = true/);
     expect(source).toContain('userClient.auth.getUser()');
     expect(source).toContain("userClient.rpc('is_admin')");
   });
@@ -22,7 +22,7 @@ describe('GDC QRIS MPM admin preview safety contract', () => {
   });
 
   it('distinguishes missing Supabase runtime configuration from an invalid user session', () => {
-    expect(authGuard).toContain('Supabase runtime configuration is incomplete');
+    expect(authGuard).toContain('GDC QR MPM Supabase runtime configuration is incomplete');
     expect(authGuard).toContain('Konfigurasi runtime Supabase Edge Function belum lengkap.');
     expect(authGuard).toContain('Sesi login tidak ditemukan.');
     expect(authGuard).toContain('Sesi login tidak valid atau kedaluwarsa.');

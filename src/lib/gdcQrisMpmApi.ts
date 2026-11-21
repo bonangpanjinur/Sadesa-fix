@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface GdcQrisMpmPayment {
   order_id: string;
-  status: 'PENDING' | 'PAID' | 'FAILED';
+  status: 'PENDING' | 'PAID' | 'FAILED' | 'EXPIRED';
   amount: number;
   currency: 'IDR';
   qr_content: string | null;
@@ -45,7 +45,7 @@ function parsePayment(value: unknown): GdcQrisMpmPayment {
   const payment = value as Record<string, unknown>;
   if (typeof payment.error === 'string') throw new Error(payment.error);
   if (typeof payment.order_id !== 'string'
-    || !['PENDING', 'PAID', 'FAILED'].includes(String(payment.status))
+    || !['PENDING', 'PAID', 'FAILED', 'EXPIRED'].includes(String(payment.status))
     || typeof payment.amount !== 'number'
     || !Number.isFinite(payment.amount)
     || payment.currency !== 'IDR'

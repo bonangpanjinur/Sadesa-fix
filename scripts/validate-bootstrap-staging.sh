@@ -35,8 +35,8 @@ Optional environment:
   STAGING_VALIDATION_LOG_DIR=/path     Output directory for timestamped logs.
   STAGING_VALIDATION_LOCK_FILE=/path   Local lock file preventing concurrent runs.
 
-The script never prints SUPABASE_DB_URL. It applies the canonical bootstrap bundles
-in lexical order, optionally replays them, then checks migration metadata and critical
+The script never prints SUPABASE_DB_URL. It applies every numbered canonical bootstrap bundle
+in numeric order, optionally replays them, then checks migration metadata and critical
 subscription/POS/notification objects.
 EOF
 }
@@ -100,7 +100,7 @@ apply_bundles() {
   local migration_count
   migration_count="$(sed -n 's/^[[:space:]]*\"migration_count\":[[:space:]]*\([0-9][0-9]*\),/\1/p' "$BOOTSTRAP_DIR/manifest.json")"
   [[ "$migration_count" =~ ^[0-9]+$ ]] || { echo "Could not read migration_count from manifest" >&2; return 1; }
-  mapfile -t bundles < <(find "$BOOTSTRAP_DIR" -maxdepth 1 -type f -name '[0-9][0-9]_*.sql' -printf '%f\n' | sort)
+  mapfile -t bundles < <(find "$BOOTSTRAP_DIR" -maxdepth 1 -type f -name '[0-9]*_*.sql' -printf '%f\n' | sort -V)
   local manifest_bundle_count
   manifest_bundle_count="$(python3 - "$BOOTSTRAP_DIR/manifest.json" <<'PY'
 import json

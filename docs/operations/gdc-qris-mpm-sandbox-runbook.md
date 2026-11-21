@@ -10,9 +10,18 @@ Panduan ini untuk memasang dan menguji QRIS dinamis GDC pada **Supabase sandbox/
 - Pastikan perubahan database GDC sudah diterapkan ke project yang sama. Migration source GDC ada di bootstrap `134`, `140`, `141`, `142`, dan `143`, sesuai urutan bootstrap. Workflow `scripts/deploy-supabase-staging.sh` menerapkan semua bootstrap, bukan hanya migration GDC; tinjau target dan prosedur database sebelum menjalankannya.
 - Jangan menaruh GDC private key, client secret, service-role key, atau token pada frontend, variabel `VITE_*`, Vercel/Railway, Git, tiket, atau log.
 
+### Batas environment: Vercel vs Supabase
+
+| Lokasi | Yang boleh disimpan | Yang dilarang |
+|---|---|---|
+| Vercel/frontend | `VITE_SUPABASE_URL`, publishable/anon key, dan konfigurasi UI non-rahasia | Semua `GDC_*`, `ALLOWED_ORIGINS`, `GDC_ADMIN_PREVIEW_ENABLED`, service-role key, private key, client secret, access token, dan signature |
+| Supabase Edge Functions | Semua `GDC_*`, `ALLOWED_ORIGINS`, `GDC_ADMIN_PREVIEW_ENABLED`, serta secret runtime Supabase melalui Secret Manager | Menyalin secret ke source code, browser, Vercel, Git, atau log |
+
+`ALLOWED_ORIGINS` berisi daftar origin yang dipisahkan koma dan sudah disetujui. `GDC_ADMIN_PREVIEW_ENABLED=true` hanya untuk preview sandbox; production harus `false`.
+
 ## 2. Konfigurasi gateway dan deploy function
 
-`supabase/config.toml` menetapkan `verify_jwt = true` untuk `gdc-qris-mpm`. Endpoint ini hanya untuk user login dan handler tetap memvalidasi token dengan `auth.getUser()` serta memanggil RPC `is_admin()`. **Jangan** mengatasi error dengan menonaktifkan verifikasi JWT.
+`supabase/config.toml` menetapkan satu blok `functions.gdc-qris-mpm` dengan `verify_jwt = true`. Endpoint ini hanya untuk user login dan handler tetap memvalidasi token dengan `auth.getUser()` serta memanggil RPC `is_admin()` untuk preview admin. **Jangan** mengatasi error dengan menonaktifkan verifikasi JWT.
 
 Di mesin tepercaya yang sudah login Supabase CLI, set ref yang telah diverifikasi:
 

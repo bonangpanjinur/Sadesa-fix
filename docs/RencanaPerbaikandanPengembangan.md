@@ -5,7 +5,7 @@
 **Frontend:** Vite + React + TypeScript, deployment melalui Vercel  
 **Backend:** Supabase Auth, Database, RPC, dan Edge Functions  
 **Provider:** GDC/Neo QRIS MPM Dynamic  
-**Status dokumen:** Diperbarui setelah audit commit `69d03525` pada 2026-11-20; source dan validasi repository sudah selesai, tetapi deployment serta pengujian provider nyata belum dilakukan.
+**Status dokumen:** Diperbarui setelah pull ke `5af54468` dan implementasi QRIS GDC lanjutan pada 2026-11-21; source dan validasi repository sudah selesai, tetapi deployment serta pengujian provider nyata belum dilakukan.
 
 
 ---
@@ -560,7 +560,7 @@ Source Mermaid untuk semua diagram disediakan terpisah agar dapat diedit.
 
 #### `src/pages/PaymentConfirmationPage.tsx`
 
-- Pertahankan render `qr_content` dengan `react-qr-code`.
+- Pertahankan render `qr_content` dengan `qrcode.react` (`QRCodeSVG`); `react-qr-code` sudah dihapus agar hanya ada satu library QR.
 - Samakan marker provider dengan `QRIS_MPM_GDC`.
 - Tambahkan polling status terkontrol.
 - Hentikan polling pada `PAID`, `FAILED`, `EXPIRED`, atau order dibatalkan.

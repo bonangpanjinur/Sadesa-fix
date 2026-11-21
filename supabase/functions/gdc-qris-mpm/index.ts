@@ -32,7 +32,8 @@ interface PaymentRow {
   amount: number;
   currency: string;
   qr_content: string | null;
-  status: 'CREATING' | 'PENDING' | 'PAID' | 'FAILED';
+  status: 'CREATING' | 'PENDING' | 'PAID' | 'FAILED' | 'EXPIRED';
+  error_code: string | null;
   paid_at: string | null;
 }
 interface GdcResponse {
@@ -53,15 +54,21 @@ interface GdcResponse {
   amount?: { value?: string; currency?: string };
 }
 let tokenCache: { token: string; expiresAt: number } | null = null;
+const queryThrottle = new Map<string, number>();
 
+function allowedOrigins(): Set<string> {
+  return new Set((Deno.env.get('ALLOWED_ORIGINS') || 'https://sadesa.id,https://www.sadesa.id')
+    .split(',').map((value) => value.trim()).filter(Boolean));
+}
+function corsFor(req?: Request): Record<string, string> {
+  const origin = req?.headers.get('origin') || '';
+  const allowed = allowedOrigins();
+  return { ...corsHeaders, 'Access-Control-Allow-Origin': allowed.has(origin) ? origin : [...allowed][0] };
+}
 function json(data: unknown, status = 200, req?: Request): Response {
-  const origin = req?.headers.get('origin');
-  const allowedOrigin = origin === 'https://sadesa.id' || origin === 'https://www.sadesa.id' || origin?.startsWith('http://localhost:')
-    ? origin
-    : 'https://sadesa.id';
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...corsHeaders, 'Access-Control-Allow-Origin': allowedOrigin, 'Content-Type': 'application/json' },
+    headers: { ...corsFor(req), 'Content-Type': 'application/json' },
   });
 }
 function getCredentials(): GdcCredentials {
@@ -177,13 +184,11 @@ function parseAmount(value: string | undefined): number | null {
   const amount = Number(value);
   return Number.isSafeInteger(Math.round(amount * 100)) ? Math.round(amount * 100) : null;
 }
+function payment_status_is_pending(value: unknown): boolean { return value !== 'PAID' && value !== 'REFUNDED'; }
+
 async function processRequest(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') {
-    const origin = req.headers.get('origin');
-    const allowedOrigin = origin === 'https://sadesa.id' || origin === 'https://www.sadesa.id' || origin?.startsWith('http://localhost:')
-      ? origin
-      : 'https://sadesa.id';
-    return new Response(null, { status: 204, headers: { ...corsHeaders, 'Access-Control-Allow-Origin': allowedOrigin } });
+    return new Response(null, { status: 204, headers: corsFor(req) });
   }
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405, req);
   const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
@@ -220,8 +225,9 @@ async function processRequest(req: Request): Promise<Response> {
     if (!input.application_id || !/^[0-9a-f-]{36}$/i.test(input.application_id)) {
       return json({ error: 'Pengajuan QRIS tidak valid.' }, 400, req);
     }
-    if (new URL(API_BASE).hostname !== GDC_SANDBOX_HOST) {
-      return json({ error: 'Preview QRIS hanya diizinkan pada endpoint sandbox GDC.' }, 409, req);
+    const previewEnabled = Deno.env.get('GDC_ADMIN_PREVIEW_ENABLED') === 'true';
+    if (!previewEnabled || new URL(API_BASE).hostname !== GDC_SANDBOX_HOST) {
+      return json({ error: 'Preview QRIS sandbox sedang dinonaktifkan.' }, 409, req);
     }
     const { data: isAdmin, error: adminCheckError } = await userClient.rpc('is_admin');
     if (adminCheckError || isAdmin !== true) return json({ error: 'Akses admin diperlukan untuk uji QRIS.' }, 403, req);
@@ -276,7 +282,13 @@ async function processRequest(req: Request): Promise<Response> {
     return json({ error: 'Pesanan tidak lagi menunggu pembayaran.' }, 409, req);
   }
   if (input.action === 'create' && (order.payment_status === 'EXPIRED' || order.status === 'CANCELLED' || order.status === 'CANCELED' || order.status === 'REFUNDED')) return json({ error: 'Pesanan telah dibatalkan atau kedaluwarsa.' }, 409, req);
-  if (input.action === 'create' && order.confirmation_deadline && new Date(order.confirmation_deadline).getTime() <= Date.now()) return json({ error: 'Batas pembayaran pesanan telah berakhir.' }, 409, req);
+  const deadline = order.confirmation_deadline ? new Date(order.confirmation_deadline).getTime() : null;
+  if (deadline && deadline <= Date.now()) {
+    if (payment_status_is_pending(order.payment_status)) {
+      await admin.from('gdc_qris_mpm_payments').update({ status: 'EXPIRED', error_code: 'PAYMENT_DEADLINE_EXPIRED', updated_at: new Date().toISOString() }).eq('order_id', order.id).in('status', ['CREATING', 'PENDING']);
+    }
+    return json({ order_id: order.id, status: 'EXPIRED', amount: Number(order.total), currency: 'IDR', qr_content: null, reference_no: null, paid_at: null }, 200, req);
+  }
   const { data: application, error: applicationError } = await admin.from('qris_applications')
     .select('gdc_merchant_id, gdc_account_number, gdc_mpm_enabled, qris_merchant_name')
     .eq('merchant_id', order.merchant_id).eq('status', 'ACTIVE').eq('gdc_mpm_enabled', true)
@@ -286,11 +298,6 @@ async function processRequest(req: Request): Promise<Response> {
   }
   const amount = Number(order.total);
   if (!Number.isSafeInteger(amount) || amount <= 0) return json({ error: 'Nominal pesanan tidak valid.' }, 409, req);
-  if (input.action === 'create') {
-    const { error: markError } = await admin.from('orders').update({ payment_channel: 'QRIS_MPM_GDC' })
-      .eq('id', order.id).eq('buyer_id', authData.user.id);
-    if (markError) return json({ error: 'Metode pembayaran QRIS belum dapat disiapkan.' }, 503, req);
-  }
   const { data: paymentRow, error: paymentError } = await admin.from('gdc_qris_mpm_payments').select('*').eq('order_id', order.id).maybeSingle();
   let payment = paymentRow;
   if (paymentError) return json({ error: 'Data pembayaran tidak dapat dimuat.' }, 503, req);
@@ -298,7 +305,7 @@ async function processRequest(req: Request): Promise<Response> {
     console.error('GDC payment merchant mismatch', { orderId: order.id });
     return json({ error: 'Data pembayaran tidak cocok dengan toko pesanan.' }, 409, req);
   }
-  if (payment?.status === 'PENDING' || payment?.status === 'PAID') return json(responsePayment(payment as PaymentRow));
+  if (payment?.status === 'PENDING' || payment?.status === 'PAID' || payment?.status === 'EXPIRED') return json(responsePayment(payment as PaymentRow));
   if (payment?.status === 'FAILED' && input.action === 'create' && payment.error_code !== 'QR_CREATE_FAILED') {
     return json({ error: 'Pembayaran ini sudah dinyatakan gagal oleh provider. Hubungi merchant untuk instruksi berikutnya.' }, 409, req);
   }
@@ -347,6 +354,9 @@ async function processRequest(req: Request): Promise<Response> {
         updated_at: new Date().toISOString(),
       }).eq('order_id', order.id).eq('status', 'CREATING').select('*').single();
       if (saveError || !saved) throw new Error('QR pembayaran belum dapat disimpan.');
+      const { error: markError } = await admin.from('orders').update({ payment_channel: 'QRIS_MPM_GDC' })
+        .eq('id', order.id).eq('buyer_id', authData.user.id);
+      if (markError) throw new Error('Metode pembayaran QRIS belum dapat disiapkan.');
       return json(responsePayment(saved as PaymentRow), 200, req);
     } catch (error) {
       await admin.from('gdc_qris_mpm_payments').update({ status: 'FAILED', error_code: 'QR_CREATE_FAILED', updated_at: new Date().toISOString() }).eq('order_id', order.id).eq('status', 'CREATING');
@@ -356,6 +366,10 @@ async function processRequest(req: Request): Promise<Response> {
   }
   const existingPayment = payment as PaymentRow;
   if (!existingPayment.reference_no || !existingPayment.qr_content) return json({ error: 'QR pembayaran belum tersedia.' }, 409, req);
+  const throttleKey = `${authData.user.id}:${order.id}`;
+  const lastQuery = queryThrottle.get(throttleKey) || 0;
+  if (Date.now() - lastQuery < 4000) return json(responsePayment(existingPayment), 200, req);
+  queryThrottle.set(throttleKey, Date.now());
   try {
     const queryBody = {
       originalReferenceNo: existingPayment.reference_no,

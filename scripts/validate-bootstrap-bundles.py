@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import hashlib
 import sys
+import re
 from pathlib import Path
 
 
@@ -17,6 +18,11 @@ def has_repeatability_signals(content: str) -> bool:
         'CREATE OR REPLACE',
         'ON CONFLICT',
     ))
+
+
+def bundle_sort_key(path: Path) -> tuple[int, str]:
+    match = re.match(r'^(\d+)_', path.name)
+    return (int(match.group(1)) if match else 10**9, path.name)
 
 
 def main() -> int:
@@ -33,7 +39,7 @@ def main() -> int:
         print('- manifest does not declare idempotent=true')
         return 1
     manifest_sources = [name for bundle in manifest['bundles'] for name in bundle['source_files']]
-    expected = [path.name for path in sorted(source.glob('*.sql'))] if source else manifest_sources
+    expected = [path.name for path in sorted(source.glob('*.sql'), key=bundle_sort_key)] if source else manifest_sources
     actual = [name for bundle in manifest['bundles'] for name in bundle['source_files']]
     errors: list[str] = []
     if expected != actual:
@@ -48,6 +54,11 @@ def main() -> int:
             errors.append(f'unknown source migrations: {extra[:5]}')
         if duplicates:
             errors.append(f'duplicate source migrations: {duplicates[:5]}')
+    bundle_files = sorted(bundle_dir.glob('[0-9]*_*.sql'), key=bundle_sort_key)
+    manifest_files = [bundle['file'] for bundle in manifest['bundles']]
+    actual_files = [path.name for path in bundle_files]
+    if actual_files != manifest_files:
+        errors.append('bundle file order or coverage does not match numeric canonical order')
     for bundle in manifest['bundles']:
         bundle_path = bundle_dir / bundle['file']
         if not bundle_path.exists():
