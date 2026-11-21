@@ -43,6 +43,8 @@ function renderCard() {
 describe('Merchant dynamic QRIS document upload', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn((file: File) => `blob:${file.name}`) });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
     mocks.maybeSingle.mockResolvedValue({ data: null, error: null });
     mocks.upload.mockResolvedValue({ error: null });
     mocks.remove.mockResolvedValue({ error: null });
@@ -57,6 +59,7 @@ describe('Merchant dynamic QRIS document upload', () => {
 
     expect(screen.getByRole('heading', { name: 'Pengajuan QRIS Dinamis GDC' })).toBeInTheDocument();
     expect(screen.getByText('ktp-pemilik.jpg')).toBeInTheDocument();
+    expect(await screen.findByRole('img', { name: 'Pratinjau Foto KTP Pemilik' })).toHaveAttribute('src', 'blob:ktp-pemilik.jpg');
     expect(mocks.upload).not.toHaveBeenCalled();
   });
 

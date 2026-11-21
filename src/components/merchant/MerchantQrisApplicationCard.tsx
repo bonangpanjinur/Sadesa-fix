@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Clock3, FileImage, Loader2, QrCode, Upload } from 'lucide-react';
+import { CheckCircle2, Clock3, FileImage, Loader2, QrCode, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -39,6 +39,13 @@ export function MerchantQrisApplicationCard({ merchantId, merchantName, bankName
   const [shortName, setShortName] = useState('');
   const [merchantQrisName, setMerchantQrisName] = useState('');
   const [files, setFiles] = useState<Record<string, File>>({});
+  const [filePreviews, setFilePreviews] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const previews = Object.fromEntries(Object.entries(files).map(([code, file]) => [code, URL.createObjectURL(file)]));
+    setFilePreviews(previews);
+    return () => Object.values(previews).forEach((preview) => URL.revokeObjectURL(preview));
+  }, [files]);
 
   useEffect(() => {
     let active = true;
@@ -66,21 +73,26 @@ export function MerchantQrisApplicationCard({ merchantId, merchantName, bankName
   const needsCorrection = application?.status === 'NEEDS_CORRECTION';
   const canApply = !application || needsCorrection || application.status === 'REJECTED';
   const dynamicQrisActive = application?.status === 'ACTIVE' && application.gdc_mpm_enabled === true;
-  const handleFileChange = (code: string, event: React.ChangeEvent<HTMLInputElement>) => {
-    const input = event.currentTarget;
-    const file = input.files?.[0];
+  const handleFileChange = (code: string, file?: File, input?: HTMLInputElement) => {
     if (!file) return;
     if (!['image/jpeg', 'image/png'].includes(file.type)) {
       toast.error('Dokumen harus berupa JPG atau PNG.');
-      input.value = '';
+      if (input) input.value = '';
       return;
     }
     if (file.size > maxDocumentSize) {
       toast.error('Ukuran setiap dokumen maksimal 2 MB. Pilih foto yang lebih kecil.');
-      input.value = '';
+      if (input) input.value = '';
       return;
     }
     setFiles((current) => ({ ...current, [code]: file }));
+  };
+  const clearSelectedFile = (code: string) => {
+    setFiles((current) => {
+      const next = { ...current };
+      delete next[code];
+      return next;
+    });
   };
   const submit = async () => {
     if (!user) return;
@@ -170,7 +182,44 @@ export function MerchantQrisApplicationCard({ merchantId, merchantName, bankName
             <div className="space-y-2"><Label>Nama Merchant QRIS (maks. 25 karakter)</Label><Input maxLength={25} value={shortName} onChange={(event) => setShortName(event.target.value)} placeholder="Nama singkat merchant" /><p className="text-right text-xs text-muted-foreground">{shortName.length}/25</p></div>
             <div className="space-y-2"><Label>Nama Merchant QRIS (maks. 50 karakter)</Label><Input maxLength={50} value={merchantQrisName} onChange={(event) => setMerchantQrisName(event.target.value)} placeholder="Nama yang ditampilkan pada QRIS" /><p className="text-right text-xs text-muted-foreground">{merchantQrisName.length}/50</p></div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">{requiredDocuments.map(({ code, label }) => <div key={code} className="space-y-2"><Label>{label} <span className="text-destructive">*</span></Label><label className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed p-3 text-sm hover:bg-muted/60"><FileImage className="h-5 w-5 text-muted-foreground" /><span className="min-w-0 flex-1 truncate">{files[code]?.name || (application?.documents?.[code] ? 'Dokumen tersimpan · pilih untuk mengganti' : 'Pilih foto JPG/PNG')}</span><Upload className="h-4 w-4" /><input type="file" accept="image/jpeg,image/png" aria-label={label} className="sr-only" onChange={(event) => handleFileChange(code, event)} /></label><p className="text-xs text-muted-foreground">JPG atau PNG, maksimal 2 MB.</p></div>)}</div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {requiredDocuments.map(({ code, label }) => {
+              const inputId = `qris-document-${code.toLowerCase()}`;
+              return <div key={code} className="space-y-2">
+                <Label htmlFor={inputId}>{label} <span className="text-destructive">*</span></Label>
+                <div className="relative">
+                  <label
+                    htmlFor={inputId}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      handleFileChange(code, event.dataTransfer.files?.[0]);
+                    }}
+                    className="relative block aspect-square cursor-pointer overflow-hidden rounded-lg border-2 border-dashed border-muted-foreground/25 transition-all hover:border-muted-foreground/50"
+                  >
+                    {filePreviews[code] ? <>
+                      <img src={filePreviews[code]} alt={`Pratinjau ${label}`} className="absolute inset-0 h-full w-full object-cover" />
+                      <span className="absolute inset-x-0 bottom-0 truncate bg-background/85 px-3 py-2 text-xs">{files[code]?.name}</span>
+                    </> : <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4 text-center text-muted-foreground">
+                      <FileImage className="h-8 w-8" />
+                      <span className="text-sm">{application?.documents?.[code] ? 'Dokumen tersimpan · pilih untuk mengganti' : 'Pilih foto JPG/PNG'}</span>
+                      <span className="text-xs">Maks. 2 MB</span>
+                    </span>}
+                  </label>
+                  <input
+                    id={inputId}
+                    type="file"
+                    accept="image/jpeg,image/png"
+                    aria-label={label}
+                    className="sr-only"
+                    onChange={(event) => handleFileChange(code, event.currentTarget.files?.[0], event.currentTarget)}
+                  />
+                  {files[code] && <Button type="button" variant="destructive" size="icon" aria-label={`Hapus ${label}`} className="absolute right-2 top-2 h-8 w-8" onClick={() => clearSelectedFile(code)}><X className="h-4 w-4" /></Button>}
+                </div>
+                <p className="text-xs text-muted-foreground">JPG atau PNG, maksimal 2 MB.</p>
+              </div>;
+            })}
+          </div>
           <p className="text-xs text-muted-foreground">Dengan mengirim, Anda menyatakan data benar. Dokumen disimpan privat untuk keperluan verifikasi QRIS.</p>
           {uploadStatus && <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />{uploadStatus}</p>}
           <Button type="button" onClick={() => void submit()} disabled={saving} className="gap-2">{saving && <Loader2 className="h-4 w-4 animate-spin" />}{needsCorrection ? 'Kirim Perbaikan' : 'Kirim Pengajuan QRIS Dinamis'}</Button>
