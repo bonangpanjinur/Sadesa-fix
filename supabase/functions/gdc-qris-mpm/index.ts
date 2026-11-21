@@ -190,13 +190,27 @@ async function processRequest(req: Request): Promise<Response> {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
   const authHeader = req.headers.get('authorization') || '';
-  if (!supabaseUrl || !serviceRoleKey || !anonKey || !authHeader.startsWith('Bearer ')) return json({ error: 'Unauthorized' }, 401, req);
+  const missingRuntimeConfig = {
+    supabaseUrl: !supabaseUrl,
+    serviceRoleKey: !serviceRoleKey,
+    anonKey: !anonKey,
+  };
+  if (Object.values(missingRuntimeConfig).some(Boolean)) {
+    console.error('GDC QR MPM Supabase runtime configuration is incomplete', missingRuntimeConfig);
+    return json({ error: 'Konfigurasi runtime Supabase Edge Function belum lengkap. Hubungi administrator.' }, 500, req);
+  }
+  if (!/^Bearer\s+\S+$/i.test(authHeader)) {
+    return json({ error: 'Sesi login tidak ditemukan. Silakan masuk kembali lalu coba lagi.' }, 401, req);
+  }
   const userClient = createClient(supabaseUrl, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { headers: { Authorization: authHeader } },
   });
   const { data: authData, error: authError } = await userClient.auth.getUser();
-  if (authError || !authData.user) return json({ error: 'Unauthorized' }, 401, req);
+  if (authError || !authData.user) {
+    console.warn('GDC QR MPM user session was rejected', { status: authError?.status ?? null });
+    return json({ error: 'Sesi login tidak valid atau kedaluwarsa. Silakan masuk kembali lalu coba lagi.' }, 401, req);
+  }
   const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const input = await req.json().catch(() => null) as { action?: string; order_id?: string; application_id?: string } | null;
   if (!input || !['create', 'status', 'admin_preview'].includes(input.action || '')) {
