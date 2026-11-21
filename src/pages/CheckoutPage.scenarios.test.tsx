@@ -12,6 +12,7 @@ const mockCheckout = vi.hoisted(() => ({
   merchantRows: [] as unknown[],
   merchantIsOpen: true,
   transferEnabled: true,
+  dynamicQrisEnabled: false,
   xenditEnabled: true,
   quote: null as unknown,
   quoteError: null as string | null,
@@ -157,7 +158,12 @@ vi.mock('@/integrations/supabase/client', () => ({
       };
       return query;
     },
-    rpc: (functionName: string, args: unknown) => mockCheckout.rpc(functionName, args),
+    rpc: (functionName: string, args: unknown) => {
+      if (functionName === 'merchant_has_active_gdc_qris') {
+        return Promise.resolve({ data: mockCheckout.dynamicQrisEnabled, error: null });
+      }
+      return mockCheckout.rpc(functionName, args);
+    },
   },
 }));
 
@@ -222,6 +228,7 @@ beforeEach(() => {
   mockCheckout.items = [cartItem()];
   mockCheckout.stockRows = [{ id: 'product-1', name: 'Produk Demo', stock: 10 }];
   mockCheckout.merchantIsOpen = true;
+  mockCheckout.dynamicQrisEnabled = false;
   mockCheckout.merchantRows = [{
     id: 'merchant-1',
     name: 'Toko Demo',
@@ -379,6 +386,23 @@ describe('CheckoutPage scenario regressions', () => {
     const submitButton = document.querySelector('button[type="submit"]') as HTMLButtonElement | null;
     expect(submitButton?.disabled).toBe(true);
     expect(mockCheckout.rpc.mock.calls.some(([name]) => name === 'create_marketplace_checkout')).toBe(false);
+  });
+
+  it('allows a merchant with only active GDC MPM to pay by dynamic QR without manual payment instructions', async () => {
+    mockCheckout.dynamicQrisEnabled = true;
+    mockCheckout.merchantRows = [{ ...(mockCheckout.merchantRows[0] as Record<string, unknown>), qris_image_url: null, bank_name: null, bank_account_number: null, bank_account_name: null }];
+    await preparePickupCheckout();
+
+    fireEvent.click(screen.getByRole('radio', { name: /QRIS Dinamis GDC/ }));
+
+    expect(screen.queryByText('QRIS atau rekening bank merchant belum tersedia. Checkout belum dapat dilanjutkan.')).not.toBeInTheDocument();
+    expect(screen.getByText(/QR akan dibuat setelah pesanan tersimpan/)).toBeInTheDocument();
+    const submitButton = document.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+    expect(submitButton?.disabled).toBe(false);
+
+    submitForm();
+    await waitFor(() => expect(mockCheckout.rpc.mock.calls.some(([name]) => name === 'create_marketplace_checkout')).toBe(true));
+    expect(mockCheckout.rpc).toHaveBeenCalledWith('create_marketplace_checkout', expect.objectContaining({ p_payment_method: 'TRANSFER' }));
   });
 
   it('rejects checkout when current server stock is lower than the cart demand', async () => {

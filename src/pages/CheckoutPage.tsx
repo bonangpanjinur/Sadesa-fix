@@ -1310,7 +1310,7 @@ export default function CheckoutPage() {
               <p className="mt-2 text-xs text-muted-foreground">Transfer sesuai nominal pesanan, lalu upload bukti pembayaran pada halaman pembayaran.</p>
             </div>
           )}
-          {!hasMerchantQris && !hasMerchantBank && (
+          {!hasMerchantQris && !hasMerchantBank && !(effectivePaymentMethod === 'QRIS_DYNAMIC' && dynamicQrisAvailable) && (
             <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
               QRIS atau rekening bank merchant belum tersedia. Checkout belum dapat dilanjutkan.
             </div>

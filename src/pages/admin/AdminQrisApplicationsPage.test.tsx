@@ -97,6 +97,23 @@ describe('Admin QRIS GDC mapping controls', () => {
     expect(screen.getAllByRole('option')).toHaveLength(5);
   });
 
+  it('does not allow approval while any required merchant document is missing', async () => {
+    arrange(application({ status: 'SUBMITTED', documents: { OWNER_ID: 'admin-user/application-1/owner_id.jpg' } }));
+    await selectApplication();
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Foto Selfie Pemilik');
+    expect(screen.getByRole('alert')).toHaveTextContent('Foto Lokasi Usaha');
+    expect(screen.getByRole('alert')).toHaveTextContent('Foto Produk');
+    expect(screen.getByRole('button', { name: 'Setujui' })).toBeDisabled();
+  });
+
+  it('shows administrators whether a merchant is an MSME or a non-MSME business', async () => {
+    arrange(application({ business_criteria_code: 'UBE' }));
+    await selectApplication();
+
+    expect(screen.getByText(/UBE — Usaha Besar \(bukan UMKM\)/)).toBeInTheDocument();
+  });
+
   it('saves the manually GDC-approved MID/account before admin activation', async () => {
     arrange(application());
     await selectApplication();

@@ -58,6 +58,11 @@ const displayLabels: Record<DisplayStatus, string> = {
   REJECTED: 'Ditolak',
   ACTIVE: 'QRIS Aktif',
 };
+const businessCriteriaLabels: Record<string, string> = {
+  UMI: 'UMI — Usaha Mikro (UMKM)',
+  UME: 'UME — Usaha Menengah (UMKM)',
+  UBE: 'UBE — Usaha Besar (bukan UMKM)',
+};
 const displayStatusFor = (status: AppStatus): DisplayStatus => {
   switch (status) {
     case 'SUBMITTED':
@@ -79,6 +84,7 @@ const docLabels: Record<string, string> = {
   BUSINESS_LOCATION: 'Foto Lokasi Usaha',
   PRODUCT: 'Foto Produk',
 };
+const requiredDocumentTypes = Object.keys(docLabels);
 
 export default function AdminQrisApplicationsPage() {
   const { user } = useAuth();
@@ -237,6 +243,9 @@ export default function AdminQrisApplicationsPage() {
 
   const shown = applications.filter((item) => filter === 'ALL' || displayStatusFor(item.status) === filter);
   const hasGdcIdentity = Boolean(selected?.gdc_merchant_id?.trim() && selected.gdc_account_number?.trim());
+  const missingRequiredDocuments = selected
+    ? requiredDocumentTypes.filter((type) => !selected.documents?.[type])
+    : requiredDocumentTypes;
   const mappingMatchesSelected = Boolean(selected
     && gdcMerchantId.trim() === selected.gdc_merchant_id?.trim()
     && gdcAccountNumber.trim() === selected.gdc_account_number?.trim());
@@ -289,7 +298,7 @@ export default function AdminQrisApplicationsPage() {
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="grid gap-3 rounded-lg bg-muted/50 p-4 text-sm sm:grid-cols-2">
-                <p><strong>Kriteria bisnis:</strong> {selected.business_criteria_code}</p>
+                <p><strong>Kriteria bisnis:</strong> {businessCriteriaLabels[selected.business_criteria_code] ?? selected.business_criteria_code}</p>
                 <p><strong>Lama usaha:</strong> {selected.business_age_code}</p>
                 <p><strong>Nama QRIS (25):</strong> {selected.qris_merchant_name_short}</p>
                 <p><strong>Nama QRIS (50):</strong> {selected.qris_merchant_name}</p>
@@ -300,6 +309,11 @@ export default function AdminQrisApplicationsPage() {
 
               <div>
                 <h3 className="mb-3 font-semibold">Dokumen Merchant</h3>
+                {missingRequiredDocuments.length > 0 && (
+                  <p className="mb-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
+                    Pengajuan belum dapat disetujui. Dokumen wajib belum tersedia: {missingRequiredDocuments.map((type) => docLabels[type]).join(', ')}.
+                  </p>
+                )}
                 <div className="grid gap-3 sm:grid-cols-2">
                   {Object.entries(docLabels).map(([type, label]) => (
                     <div key={type} className="rounded-lg border p-3">
@@ -320,7 +334,7 @@ export default function AdminQrisApplicationsPage() {
                     <Button variant="outline" disabled={saving} onClick={() => void setStatus(selected, 'IN_REVIEW')}><Clock3 className="mr-2 h-4 w-4" />Mulai Verifikasi</Button>
                     <Button variant="outline" disabled={saving || correctionNote.trim().length < 8} onClick={() => void setStatus(selected, 'NEEDS_CORRECTION', correctionNote)}><FileText className="mr-2 h-4 w-4" />Minta Perbaikan</Button>
                     <Button variant="destructive" disabled={saving || correctionNote.trim().length < 8} onClick={() => void setStatus(selected, 'REJECTED', correctionNote)}><XCircle className="mr-2 h-4 w-4" />Tolak</Button>
-                    <Button disabled={saving} onClick={() => void setStatus(selected, 'APPROVED_PENDING_ISSUANCE', 'Data dan dokumen telah diverifikasi.')}><CheckCircle2 className="mr-2 h-4 w-4" />Setujui</Button>
+                    <Button disabled={saving || missingRequiredDocuments.length > 0} onClick={() => void setStatus(selected, 'APPROVED_PENDING_ISSUANCE', 'Data dan dokumen telah diverifikasi.')}><CheckCircle2 className="mr-2 h-4 w-4" />Setujui</Button>
                   </div>
                 </div>
               )}
