@@ -1,5 +1,6 @@
 -- Bind dynamic GDC QRIS before the order INSERT trigger assigns immutable payment fields.
--- The existing seven-argument function remains the canonical checkout implementation.
+-- Call the private helper directly: calling the overloaded public RPC with seven arguments
+-- is ambiguous because this wrapper's eighth argument has a default value.
 CREATE OR REPLACE FUNCTION public.create_marketplace_checkout(
   p_items jsonb,
   p_delivery jsonb,
@@ -36,7 +37,7 @@ BEGIN
     true
   );
 
-  v_result := public.create_marketplace_checkout(
+  v_result := public.create_marketplace_checkout_core(
     p_items,
     p_delivery,
     p_delivery_type,
@@ -65,4 +66,5 @@ $$;
 
 REVOKE ALL ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text, text) TO authenticated, service_role;
+REVOKE ALL ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text) FROM PUBLIC, anon, authenticated, service_role;
 NOTIFY pgrst, 'reload schema';

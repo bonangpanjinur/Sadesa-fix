@@ -6,6 +6,14 @@ const migration = readFileSync(resolve(
   process.cwd(),
   'supabase/bootstrap/144_20261121003000_restore_marketplace_checkout_implementation.sql',
 ), 'utf8');
+const initialGdcWrapper = readFileSync(resolve(
+  process.cwd(),
+  'supabase/bootstrap/150_20261121174000_qris_checkout_channel_binding.sql',
+), 'utf8');
+const overloadRepair = readFileSync(resolve(
+  process.cwd(),
+  'supabase/bootstrap/151_20261122001000_fix_marketplace_checkout_overload_ambiguity.sql',
+), 'utf8');
 
 describe('marketplace checkout wrapper repair', () => {
   it('restores the canonical seven-argument authoritative RPC', () => {
@@ -21,5 +29,22 @@ describe('marketplace checkout wrapper repair', () => {
     expect(migration).toContain('public.reserve_marketplace_stock(');
     expect(migration).toContain('INSERT INTO public.marketplace_checkout_idempotency');
     expect(migration).not.toMatch(/RETURN public\.create_marketplace_checkout\([\s\S]*?p_checkout_key\s*,\s*NULL\s*\)/);
+  });
+
+  it('routes the GDC wrapper through the private, non-overloaded checkout helper', () => {
+    for (const source of [initialGdcWrapper, overloadRepair]) {
+      expect(source).toContain('v_result := public.create_marketplace_checkout_core(');
+      expect(source).not.toMatch(/v_result\s*:=\s*public\.create_marketplace_checkout\s*\(/);
+    }
+  });
+
+  it('hides the historical seven-argument overload from API roles and reloads PostgREST', () => {
+    expect(overloadRepair).toContain(
+      'REVOKE ALL ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text) FROM PUBLIC, anon, authenticated, service_role',
+    );
+    expect(overloadRepair).toContain(
+      'GRANT EXECUTE ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text, text) TO authenticated, service_role',
+    );
+    expect(overloadRepair).toContain("NOTIFY pgrst, 'reload schema'");
   });
 });
