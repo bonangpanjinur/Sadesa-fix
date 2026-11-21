@@ -32,6 +32,7 @@ Dokumentasi dikelompokkan berdasarkan topik. Nama dan tanggal pada dokumen histo
 - [Audit kesiapan API payment gateway Xendit — 15 Oktober 2026](audits/audit-kesiapan-payment-gateway-xendit-2026-10-15.md)
 - [Checklist kesiapan rilis](testing/release-readiness-checklist-2026-09-11.md)
 - [Panduan migrasi dan deployment POS](database/migrations/pos-database-migration-deployment.md)
+- [Runbook GDC QRIS MPM sandbox](operations/gdc-qris-mpm-sandbox-runbook.md)
 - [Audit fitur POS dari sisi merchant — 2 Oktober 2026](audits/audit-fitur-pos-merchant-2026-10-02.md)
 - [Audit operasional POS untuk merchant — 2 Oktober 2026](audits/audit-operasional-pos-merchant-2026-10-02.md)
 - [Panduan implementasi dan operasional POS untuk merchant](operations/panduan-implementasi-pos-untuk-merchant.md)
