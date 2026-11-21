@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { GDC_API_BASE, gdcPost, getGdcCredentials, type GdcCredentials } from "../_shared/gdcSnap.ts";
 
-const API_BASE = (Deno.env.get("GDC_API_BASE_URL") || "https://neo-sandbox-api.gdc.co.id/snap").replace(/\/$/, "");
+const API_BASE = GDC_API_BASE;
 const GDC_SANDBOX_HOST = "neo-sandbox-api.gdc.co.id";
 const API_PATHS = {
   token: "/v1.0/access-token/b2b",
@@ -15,14 +16,6 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Vary": "Origin",
 };
-interface GdcCredentials {
-  clientKey: string;
-  clientSecret: string;
-  privateKeyPem: string;
-  partnerId: string;
-  channelId: string;
-  deviceId: string;
-}
 interface PaymentRow {
   order_id: string;
   merchant_id: string;
@@ -36,26 +29,6 @@ interface PaymentRow {
   error_code: string | null;
   paid_at: string | null;
 }
-interface GdcResponse {
-  responseCode?: string;
-  responseMessage?: string;
-  accessToken?: string;
-  expiresIn?: string;
-  partnerReferenceNo?: string;
-  referenceNo?: string;
-  qrContent?: string;
-  originalReferenceNo?: string;
-  originalPartnerReferenceNo?: string;
-  originalExternalId?: string;
-  serviceCode?: string;
-  latestTransactionStatus?: string;
-  transactionStatusDesc?: string;
-  paidTime?: string;
-  amount?: { value?: string; currency?: string };
-}
-let tokenCache: { token: string; expiresAt: number } | null = null;
-const queryThrottle = new Map<string, number>();
-
 function allowedOrigins(): Set<string> {
   return new Set((Deno.env.get('ALLOWED_ORIGINS') || 'https://sadesa.id,https://www.sadesa.id')
     .split(',').map((value) => value.trim()).filter(Boolean));
@@ -66,104 +39,12 @@ function corsFor(req?: Request): Record<string, string> {
   return { ...corsHeaders, 'Access-Control-Allow-Origin': allowed.has(origin) ? origin : [...allowed][0] };
 }
 function json(data: unknown, status = 200, req?: Request): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsFor(req), 'Content-Type': 'application/json' },
-  });
+  return new Response(JSON.stringify(data), { status, headers: { ...corsFor(req), 'Content-Type': 'application/json' } });
 }
 function getCredentials(): GdcCredentials {
-  const clientKey = Deno.env.get('GDC_CLIENT_KEY') || '';
-  const clientSecret = Deno.env.get('GDC_CLIENT_SECRET') || '';
-  const privateKeyPem = Deno.env.get('GDC_PRIVATE_KEY_PEM') || '';
-  const partnerId = Deno.env.get('GDC_PARTNER_ID') || '';
-  const channelId = Deno.env.get('GDC_CHANNEL_ID') || '';
-  const deviceId = Deno.env.get('GDC_DEVICE_ID') || '';
-  if (!clientKey || !clientSecret || !privateKeyPem || !partnerId || !channelId || !deviceId) {
-    throw new Error('Konfigurasi pembayaran GDC belum lengkap.');
-  }
-  if (!/^[0-9a-f-]{36}$/i.test(partnerId)) throw new Error('Konfigurasi partner GDC tidak valid.');
-  if (!API_BASE.startsWith('https://')) throw new Error('Base URL GDC harus menggunakan HTTPS.');
-  return { clientKey, clientSecret, privateKeyPem, partnerId, channelId, deviceId };
+  return getGdcCredentials();
 }
-function base64ToBytes(value: string): Uint8Array {
-  const binary = atob(value);
-  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
-}
-function pemBytes(pem: string): Uint8Array {
-  const normalized = pem.replace(/\\n/g, '\n');
-  const match = normalized.match(/-----BEGIN PRIVATE KEY-----([\s\S]+?)-----END PRIVATE KEY-----/);
-  if (!match) throw new Error('Private key GDC harus berformat PKCS#8 PEM.');
-  return base64ToBytes(match[1].replace(/\s/g, ''));
-}
-function toBase64(bytes: Uint8Array): string {
-  let binary = '';
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
-function toBase64Url(bytes: Uint8Array): string {
-  return toBase64(bytes).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-}
-function timestamp(): string {
-  return new Date().toISOString();
-}
-async function sha256Hex(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', encoder.encode(value));
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-}
-async function getAccessToken(credentials: GdcCredentials): Promise<string> {
-  if (tokenCache && tokenCache.expiresAt > Date.now() + 30_000) return tokenCache.token;
-  const requestTime = timestamp();
-  const privateKeyBytes = pemBytes(credentials.privateKeyPem);
-  const privateKeyBuffer = new ArrayBuffer(privateKeyBytes.byteLength);
-  new Uint8Array(privateKeyBuffer).set(privateKeyBytes);
-  const key = await crypto.subtle.importKey(
-    'pkcs8', privateKeyBuffer,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign'],
-  );
-  const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, encoder.encode(`${credentials.clientKey}|${requestTime}`));
-  const response = await fetch(`${API_BASE}${API_PATHS.token}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Timestamp': requestTime, 'Client-Key': credentials.clientKey, 'X-Signature': toBase64(new Uint8Array(signature)) },
-    body: JSON.stringify({ grantType: 'client_credentials' }),
-  });
-  const body = await response.json().catch(() => ({})) as GdcResponse;
-  if (!response.ok || body.responseCode !== '2007300' || !body.accessToken) {
-    console.error('GDC access-token request failed', { status: response.status, responseCode: body.responseCode || null });
-    throw new Error('Gagal menghubungkan ke layanan QRIS. Silakan coba lagi.');
-  }
-  const expiresSeconds = Math.max(60, Number(body.expiresIn || 900));
-  tokenCache = { token: body.accessToken, expiresAt: Date.now() + expiresSeconds * 1000 };
-  return body.accessToken;
-}
-async function signSnapRequest(credentials: GdcCredentials, token: string, path: string, body: Record<string, unknown>, externalId?: string): Promise<Record<string, string>> {
-  const now = timestamp();
-  const compactPayload = JSON.stringify(body);
-  const payloadHash = await sha256Hex(compactPayload);
-  const toSign = `POST:${path}:${token}:${payloadHash}:${now}`;
-  const key = await crypto.subtle.importKey('raw', encoder.encode(credentials.clientSecret), { name: 'HMAC', hash: 'SHA-512' }, false, ['sign']);
-  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(toSign));
-  return {
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-    'X-TIMESTAMP': now,
-    'X-PARTNER-ID': credentials.partnerId,
-    'X-EXTERNAL-ID': externalId || crypto.randomUUID(),
-    'X-DEVICE-ID': credentials.deviceId,
-    'CHANNEL-ID': credentials.channelId,
-    'X-Signature': toBase64(new Uint8Array(signature)),
-  };
-}
-async function gdcPost(credentials: GdcCredentials, path: string, body: Record<string, unknown>, externalId?: string): Promise<GdcResponse> {
-  const token = await getAccessToken(credentials);
-  const headers = await signSnapRequest(credentials, token, path, body, externalId);
-  const response = await fetch(`${API_BASE}${path}`, { method: 'POST', headers, body: JSON.stringify(body) });
-  const data = await response.json().catch(() => ({})) as GdcResponse;
-  if (!response.ok) {
-    console.error('GDC transaction request failed', { path, status: response.status, responseCode: data.responseCode || null });
-    throw new Error('Layanan QRIS belum dapat memproses pembayaran. Silakan coba lagi.');
-  }
-  return data;
-}
+
 function moneyValue(value: number): string {
   if (!Number.isSafeInteger(value) || value <= 0) throw new Error('Nominal order tidak valid.');
   return `${value.toFixed(2)}`;

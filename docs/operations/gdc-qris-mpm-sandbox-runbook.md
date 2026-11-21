@@ -21,6 +21,48 @@ Panduan ini untuk memasang dan menguji QRIS dinamis GDC pada **Supabase sandbox/
 
 `gdc-qris-reconcile` adalah worker service-role-backed yang menerima hanya header `x-cron-secret` dengan nilai `CRON_SECRET` khusus. Worker mengambil maksimal 20 payment `PENDING` per run, query GDC satu per satu, memvalidasi reference/nominal, lalu memanggil `settle_gdc_qris_mpm_payment`. Payment baru boleh di-expire setelah masa tenggang 15 menit dan setelah kesempatan query worker. Migration `147` menjadwalkannya melalui `pg_cron` + `pg_net`; URL Supabase dan `GDC_RECONCILE_CRON_SECRET` harus tersedia di Supabase Vault.
 
+### 1a. Jadwal rekonsiliasi (pg_cron + pg_net + Vault)
+
+Migration `147` menyediakan jadwal worker yang kompatibel, sedangkan migration `148` bersifat **fail-fast**: migration akan gagal jika `pg_cron`, `pg_net`, Vault, atau secret wajib belum tersedia. Buat secret lebih dulu, terapkan migration `148`, lalu jadwal **harus tetap diverifikasi** setelah migration.
+
+Dua secret Vault harus dibuat manual (SQL Editor project staging; ganti placeholder, jangan simpan nilai asli di Git):
+
+```sql
+select vault.create_secret('https://<project-ref>.supabase.co', 'SUPABASE_URL');
+select vault.create_secret('<nilai-acak-panjang>', 'GDC_RECONCILE_CRON_SECRET');
+```
+
+Nilai `GDC_RECONCILE_CRON_SECRET` di Vault **harus sama persis** dengan Edge Function secret `CRON_SECRET` (nama berbeda, nilai sama). Jika berbeda, worker membalas 401 setiap run.
+
+Urutan yang disarankan: buat kedua secret Vault, set Edge Function secret `CRON_SECRET` dengan nilai yang sama, deploy `gdc-qris-reconcile`, apply bootstrap sampai migration `148`, lalu jalankan query verifikasi di bawah. Jangan menganggap migration sukses sebagai bukti job sudah berjalan.
+
+Verifikasi (tidak mencetak secret):
+
+```sql
+select jobname, schedule, active from cron.job where jobname = 'gdc-qris-mpm-reconcile-worker';
+select status, return_message, start_time from cron.job_run_details
+  where jobid = (select jobid from cron.job where jobname = 'gdc-qris-mpm-reconcile-worker')
+  order by start_time desc limit 5;
+select id, status_code, error_msg, created from net._http_response order by created desc limit 5;
+```
+
+Respons yang diharapkan: `status_code = 200`. `401` berarti secret tidak sama; `NULL`/error URL berarti secret Vault `SUPABASE_URL` belum dibuat.
+
+### 1b. Pembayaran yang terlambat
+
+Worker memeriksa payment `PENDING` (paling lama dulu, maksimal 20 per run) dan payment `EXPIRED` karena deadline selama 24 jam terakhir (maksimal 10 per run).
+
+- Jika GDC melaporkan status `00` dan order masih memenuhi syarat, pembayaran dilunasi lewat `settle_gdc_qris_mpm_payment` seperti biasa.
+- Jika GDC melaporkan `00` tetapi order sudah dibatalkan/kedaluwarsa/di-refund, settlement ditolak dan payment ditandai `error_code = 'PAID_AFTER_EXPIRY_NEEDS_REVIEW'`. Dana sudah diterima merchant: admin harus memutuskan refund manual atau menghidupkan kembali order. Cari dengan:
+
+```sql
+select order_id, merchant_id, amount, reference_no, updated_at
+from public.gdc_qris_mpm_payments
+where error_code = 'PAID_AFTER_EXPIRY_NEEDS_REVIEW' order by updated_at desc;
+```
+
+Tambahkan skenario ini ke uji staging: bayar QR setelah deadline + masa tenggang, lalu pastikan payment ditandai (atau dilunasi jika order masih hidup).
+
 ## 2. Konfigurasi gateway dan deploy function
 
 `supabase/config.toml` menetapkan satu blok `functions.gdc-qris-mpm` dengan `verify_jwt = true`. Endpoint ini hanya untuk user login dan handler tetap memvalidasi token dengan `auth.getUser()` serta memanggil RPC `is_admin()` untuk preview admin. **Jangan** mengatasi error dengan menonaktifkan verifikasi JWT.

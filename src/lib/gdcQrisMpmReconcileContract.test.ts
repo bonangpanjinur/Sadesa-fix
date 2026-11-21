@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const worker = readFileSync(resolve(process.cwd(), 'supabase/functions/gdc-qris-reconcile/index.ts'), 'utf8');
+const checkout = readFileSync(resolve(process.cwd(), 'supabase/functions/gdc-qris-mpm/index.ts'), 'utf8');
+const shared = readFileSync(resolve(process.cwd(), 'supabase/functions/_shared/gdcSnap.ts'), 'utf8');
 const migration = readFileSync(resolve(process.cwd(), 'supabase/bootstrap/147_20261121112000_gdc_qris_mpm_worker_schedule.sql'), 'utf8');
 
 describe('GDC QRIS MPM reconciliation worker contract', () => {
@@ -19,10 +21,31 @@ describe('GDC QRIS MPM reconciliation worker contract', () => {
     expect(worker).toContain('setTimeout(resolve, 100)');
   });
 
+  it('keeps GDC signing and token exchange in the shared module', () => {
+    expect(worker).toContain('../_shared/gdcSnap.ts');
+    expect(checkout).toContain('../_shared/gdcSnap.ts');
+    expect(shared).toContain('RSASSA-PKCS1-v1_5');
+    expect(shared).toContain('HMAC');
+    expect(worker).not.toContain('crypto.subtle.sign');
+    expect(checkout).not.toContain('crypto.subtle.sign');
+  });
+
   it('uses a provider-query grace period before expiry and schedules pg_net', () => {
     expect(migration).toContain("interval '15 minutes'");
     expect(migration).toContain('net.http_post');
     expect(migration).toContain('GDC_RECONCILE_CRON_SECRET');
     expect(migration).toContain('gdc-qris-reconcile');
+  });
+  it('processes the oldest pending payments first so a backlog cannot starve rows', () => {
+    expect(worker).toContain('.order("updated_at", { ascending: true })');
+  });
+
+  it('keeps checking recently expired payments and flags late payments on dead orders for refund review', () => {
+    expect(worker).toContain('.eq("status", "EXPIRED")');
+    expect(worker).toContain('LATE_PAYMENT_WINDOW_HOURS = 24');
+    expect(worker).toContain('PAID_AFTER_EXPIRY_NEEDS_REVIEW');
+    expect(worker).toContain('settleError.code === "22023"');
+    // A late payment must never be settled outside the canonical RPC.
+    expect(worker).not.toMatch(/orders["']\)\.update\(\{[^}]*payment_status/);
   });
 });

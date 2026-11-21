@@ -1,8 +1,8 @@
 {
   "idempotent": true,
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 355,
-  "bundle_count": 149,
+  "migration_count": 356,
+  "bundle_count": 150,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -1401,6 +1401,14 @@
       ],
       "sha256": "345dd0d7e33316cd37d5b9b38a6af44324aef2f3fa96ca6ac74ecb440d9c91d1",
       "bytes": 2528
+    },
+    {
+      "file": "148_20261121113000_gdc_qris_mpm_scheduler_guard.sql",
+      "source_files": [
+        "148_20261121113000_gdc_qris_mpm_scheduler_guard.sql"
+      ],
+      "sha256": "11b0a75091fe876f6c1a717bb41bddf2cb394b85a391efac79c740f45e4336dc",
+      "bytes": 1980
     }
   ]
 }
