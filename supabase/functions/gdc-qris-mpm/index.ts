@@ -154,10 +154,13 @@ async function processRequest(req: Request): Promise<Response> {
   }
   const credentials = getCredentials();
   const { data: order, error: orderError } = await admin.from('orders')
-    .select('id, buyer_id, merchant_id, total, payment_method, payment_status, status, confirmation_deadline')
+    .select('id, buyer_id, merchant_id, total, payment_method, payment_status, payment_channel, payment_intent, status, confirmation_deadline')
     .eq('id', input.order_id).eq('buyer_id', authData.user.id).maybeSingle();
   if (orderError || !order) return json({ error: 'Pesanan tidak ditemukan.' }, 404, req);
   if (order.payment_method !== 'TRANSFER') return json({ error: 'Pesanan ini tidak menggunakan QRIS merchant.' }, 409, req);
+  if (order.payment_channel !== 'QRIS_MPM_GDC' || order.payment_intent !== 'GDC_MPM') {
+    return json({ error: 'Pesanan belum terikat ke QRIS dinamis GDC. Silakan ulangi checkout.' }, 409, req);
+  }
   if (['PAID', 'REFUNDED'].includes(String(order.payment_status))) {
     const { data: existing } = await admin.from('gdc_qris_mpm_payments').select('*').eq('order_id', order.id).maybeSingle();
     if (existing) return json(responsePayment(existing as PaymentRow));
@@ -233,9 +236,6 @@ async function processRequest(req: Request): Promise<Response> {
         updated_at: new Date().toISOString(),
       }).eq('order_id', order.id).eq('status', 'CREATING').select('*').single();
       if (saveError || !saved) throw new Error('QR pembayaran belum dapat disimpan.');
-      const { error: markError } = await admin.from('orders').update({ payment_channel: 'QRIS_MPM_GDC' })
-        .eq('id', order.id).eq('buyer_id', authData.user.id);
-      if (markError) throw new Error('Metode pembayaran QRIS belum dapat disiapkan.');
       return json(responsePayment(saved as PaymentRow), 200, req);
     } catch (error) {
       await admin.from('gdc_qris_mpm_payments').update({ status: 'FAILED', error_code: 'QR_CREATE_FAILED', updated_at: new Date().toISOString() }).eq('order_id', order.id).eq('status', 'CREATING');

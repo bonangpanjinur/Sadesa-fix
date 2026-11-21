@@ -402,7 +402,10 @@ describe('CheckoutPage scenario regressions', () => {
 
     submitForm();
     await waitFor(() => expect(mockCheckout.rpc.mock.calls.some(([name]) => name === 'create_marketplace_checkout')).toBe(true));
-    expect(mockCheckout.rpc).toHaveBeenCalledWith('create_marketplace_checkout', expect.objectContaining({ p_payment_method: 'TRANSFER' }));
+    expect(mockCheckout.rpc).toHaveBeenCalledWith('create_marketplace_checkout', expect.objectContaining({
+      p_payment_method: 'TRANSFER',
+      p_payment_channel: 'QRIS_MPM_GDC',
+    }));
   });
 
   it('rejects checkout when current server stock is lower than the cart demand', async () => {

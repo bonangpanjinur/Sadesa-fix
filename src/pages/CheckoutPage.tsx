@@ -768,7 +768,11 @@ export default function CheckoutPage() {
         p_checkout_key: checkoutKeyRef.current,
       };
       const rpcPayload = user
-        ? { ...checkoutPayload, p_checkout_key: checkoutKeyRef.current }
+        ? {
+            ...checkoutPayload,
+            p_payment_channel: effectivePaymentMethod === 'QRIS_DYNAMIC' ? 'QRIS_MPM_GDC' : null,
+            p_checkout_key: checkoutKeyRef.current,
+          }
         : {
             ...checkoutPayload,
             p_guest_checkout_key: guestSessionKeyRef.current ?? getGuestCheckoutSessionKey(),
