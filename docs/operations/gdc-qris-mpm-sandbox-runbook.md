@@ -12,7 +12,7 @@ Panduan ini untuk memasang dan menguji QRIS dinamis GDC pada **Supabase sandbox/
 
 ## 2. Konfigurasi gateway dan deploy function
 
-`supabase/config.toml` menetapkan `verify_jwt = true` untuk `gdc-qris-mpm`. Endpoint ini hanya untuk user login dan handler tetap memvalidasi token dengan `auth.getUser()` serta memanggil RPC `is_admin()`. **Jangan** mengatasi error dengan menonaktifkan verifikasi JWT.
+`supabase/config.toml` menetapkan satu stanza `verify_jwt = false` untuk `gdc-qris-mpm` agar request mencapai handler dan mendapat diagnosis terarah. Ini **bukan endpoint publik**: handler wajib memvalidasi `Authorization: Bearer <user access token>` dengan `auth.getUser()` dan memanggil RPC `is_admin()` sebelum akses admin/provider. Jangan menghapus pemeriksaan tersebut atau mempercayai header dari klien tanpa validasi.
 
 Di mesin tepercaya yang sudah login Supabase CLI, set ref yang telah diverifikasi:
 
@@ -71,7 +71,7 @@ Gunakan browser DevTools → Network saat menekan tombol uji, lalu buka `POST ..
 - **403, akses admin diperlukan:** sesi valid, tetapi user tersebut tidak lolos RPC `is_admin()` pada database project itu.
 - **409, mapping belum tersimpan atau host bukan sandbox:** simpan mapping MID/account number yang benar pada record pengajuan dan pastikan host sandbox tetap aktif.
 - **502 / pesan konfigurasi GDC:** baru pada tahap ini periksa nama dan kelengkapan GDC secrets, status credential sandbox, format PKCS#8 PEM, dan log provider yang hanya mencatat status/kode respons tanpa secret.
-- **Gateway error seperti “Invalid JWT” tanpa body JSON dari handler:** gateway menolak token sebelum function berjalan. Periksa sesi browser, project URL, dan `verify_jwt`; jangan mematikan pemeriksaan JWT.
+- **Gateway error sebelum ada body handler:** pastikan URL menunjuk project yang benar, request menyertakan publishable `apikey`, dan deployed function/config adalah versi terbaru. Jika gateway dikonfigurasi berbeda di Dashboard, cocokkan dengan repo; jangan menghapus validasi JWT di handler.
 
 ## 5. Tes penerimaan sandbox
 
