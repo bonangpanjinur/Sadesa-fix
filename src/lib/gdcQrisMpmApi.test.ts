@@ -41,4 +41,14 @@ describe('GDC QRIS MPM client contract', () => {
     invoke.mockResolvedValue({ data: { ...preview, amount: 10000 }, error: null });
     await expect(previewGdcQrisMpm('application-1')).rejects.toThrow('Respons QR uji GDC tidak valid.');
   });
+
+  it('shows the Edge Function response body instead of the generic non-2xx message', async () => {
+    invoke.mockResolvedValue({
+      data: null,
+      error: Object.assign(new Error('Edge Function returned a non-2xx status code'), {
+        context: new Response(JSON.stringify({ error: 'Preview QRIS hanya diizinkan pada endpoint sandbox GDC.' }), { status: 409 }),
+      }),
+    });
+    await expect(previewGdcQrisMpm('application-1')).rejects.toThrow('Preview QRIS hanya diizinkan pada endpoint sandbox GDC.');
+  });
 });

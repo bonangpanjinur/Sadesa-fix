@@ -18,6 +18,28 @@ export interface GdcQrisMpmPreview {
   reference_no: string;
 }
 
+async function previewFunctionErrorMessage(error: unknown): Promise<string> {
+  const fallback = 'Layanan preview QRIS sandbox tidak tersedia.';
+  if (!error || typeof error !== 'object') return fallback;
+  const functionError = error as { message?: unknown; context?: unknown };
+  const context = functionError.context;
+  if (context instanceof Response) {
+    try {
+      const payload: unknown = await context.clone().json();
+      if (payload && typeof payload === 'object') {
+        const body = payload as Record<string, unknown>;
+        if (typeof body.error === 'string' && body.error.trim()) return body.error;
+        if (typeof body.message === 'string' && body.message.trim()) return body.message;
+      }
+    } catch {
+      // Fall back to the Supabase function error when the response isn't JSON.
+    }
+  }
+  return typeof functionError.message === 'string' && functionError.message.trim()
+    ? functionError.message
+    : fallback;
+}
+
 function parsePayment(value: unknown): GdcQrisMpmPayment {
   if (!value || typeof value !== 'object') throw new Error('Respons pembayaran QRIS tidak valid.');
   const payment = value as Record<string, unknown>;
@@ -55,7 +77,7 @@ export async function previewGdcQrisMpm(applicationId: string): Promise<GdcQrisM
   const { data, error } = await supabase.functions.invoke('gdc-qris-mpm', {
     body: { action: 'admin_preview', application_id: applicationId },
   });
-  if (error) throw new Error(error.message || 'Layanan preview QRIS sandbox tidak tersedia.');
+  if (error) throw new Error(await previewFunctionErrorMessage(error));
   if (!data || typeof data !== 'object') throw new Error('Respons QR uji GDC tidak valid.');
   const preview = data as Record<string, unknown>;
   if (typeof preview.error === 'string') throw new Error(preview.error);
