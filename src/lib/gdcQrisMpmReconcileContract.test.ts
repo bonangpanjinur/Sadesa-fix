@@ -6,6 +6,7 @@ const worker = readFileSync(resolve(process.cwd(), 'supabase/functions/gdc-qris-
 const checkout = readFileSync(resolve(process.cwd(), 'supabase/functions/gdc-qris-mpm/index.ts'), 'utf8');
 const shared = readFileSync(resolve(process.cwd(), 'supabase/functions/_shared/gdcSnap.ts'), 'utf8');
 const migration = readFileSync(resolve(process.cwd(), 'supabase/bootstrap/147_20261121112000_gdc_qris_mpm_worker_schedule.sql'), 'utf8');
+const settlementMigration = readFileSync(resolve(process.cwd(), 'supabase/bootstrap/149_20261121123000_gdc_qris_mpm_settlement_lifecycle.sql'), 'utf8');
 
 describe('GDC QRIS MPM reconciliation worker contract', () => {
   it('authenticates with dedicated CRON_SECRET rather than service-role JWT', () => {
@@ -26,6 +27,16 @@ describe('GDC QRIS MPM reconciliation worker contract', () => {
   it('passes the complete settlement identity from the MPM handler', () => {
     expect(checkout).toContain('p_external_id: existingPayment.external_id');
     expect(checkout).toContain('p_currency: existingPayment.currency');
+  });
+
+  it('settles paid marketplace orders to the database-supported PROCESSED lifecycle', () => {
+    expect(settlementMigration).toContain("SET payment_status = 'PAID'");
+    expect(settlementMigration).toContain("THEN 'PROCESSED'");
+    expect(settlementMigration).not.toContain("THEN 'CONFIRMED'");
+    expect(settlementMigration).toContain("p_currency <> 'IDR'");
+    expect(settlementMigration).toContain('v_payment.amount IS DISTINCT FROM p_paid_amount');
+    expect(settlementMigration).toContain('v_order.total IS DISTINCT FROM p_paid_amount');
+    expect(settlementMigration).toContain("v_payment.status = 'PAID' AND v_order.payment_status = 'PAID'");
   });
 
   it('keeps GDC signing and token exchange in the shared module', () => {
